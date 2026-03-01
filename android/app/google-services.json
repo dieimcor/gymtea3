@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "264452857008",
+    "project_id": "gymtea3-38684",
+    "storage_bucket": "gymtea3-38684.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:264452857008:android:b2c861a275de88bc8def75",
+        "android_client_info": {
+          "package_name": "com.example.gymtea3"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "264452857008-lbjgi8j4gdat8tjqp3ftai6eekjc266v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.gymtea3",
+            "certificate_hash": "67ad08056942ca3a8a94779a46fa09dc755763a0"
+          }
+        },
+        {
+          "client_id": "264452857008-ckrnb2o95r17gqpru8hve1n4m18kc6g3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXAzEmFaP8zGN-bUiiOODv8sKve9ziGNk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "264452857008-ckrnb2o95r17gqpru8hve1n4m18kc6g3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
