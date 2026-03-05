@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Manual de ejercicios (material de referencia, no versionar)
+Manual Ejercicios/
+**/Manual-de-fuerza*.pdf
+**/Manual-de-fuerza*.doc
+**/Manual-de-fuerza*.docx
+
+# Documentación técnica local
+docs/
