@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart' show DateFormat;
+import 'package:gymtea3/core/constants/app_constants.dart';
 
 /// Utilidades de formateo
 class Formatters {
@@ -26,16 +27,11 @@ class Formatters {
     return DateFormat('HH:mm').format(time);
   }
 
-  /// Nombre de categoría de ejercicio
+  /// Nombre legible de categoría de ejercicio.
+  /// Busca primero en el mapa de categorías por defecto,
+  /// si no encuentra, retorna el código tal cual (categoría nueva del backend).
   static String categoryName(String code) {
-    switch (code.toUpperCase()) {
-      case 'RD': return 'Rodilla Dominante';
-      case 'CD': return 'Cadera Dominante';
-      case 'EM': return 'Empuje';
-      case 'JL': return 'Jalón';
-      case 'CR': return 'Core';
-      default: return code;
-    }
+    return AppConstants.defaultExerciseCategories[code.toUpperCase()] ?? code;
   }
 
   /// Nombre de control motor

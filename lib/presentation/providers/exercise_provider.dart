@@ -13,12 +13,16 @@ class ExerciseProvider extends ChangeNotifier {
   int _currentLevel = 1;
   bool _isLoading = false;
   String? _error;
+  List<int> _availableLevels = [];
+  List<String> _availableCategories = [];
 
   // Getters
   List<ExerciseModel> get exercises => _exercises;
   int get currentLevel => _currentLevel;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  List<int> get availableLevels => _availableLevels;
+  List<String> get availableCategories => _availableCategories;
 
   /// Cargar ejercicios de un nivel específico
   Future<void> loadExercisesForLevel(int level) async {
@@ -38,9 +42,21 @@ class ExerciseProvider extends ChangeNotifier {
     }
   }
 
-  /// Obtener ejercicios agrupados por categoría
-  Map<CategoriaEjercicio, ExerciseModel> get exercisesByCategory {
-    final map = <CategoriaEjercicio, ExerciseModel>{};
+  /// Cargar categorías y niveles disponibles (dinámico desde backend)
+  Future<void> loadAvailableFilters() async {
+    try {
+      _availableLevels = await _exerciseRepository.getAvailableLevels();
+      _availableCategories = await _exerciseRepository.getAvailableCategories();
+      notifyListeners();
+    } catch (e) {
+      _error = 'Error al cargar filtros: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Obtener ejercicios agrupados por categoría (String key)
+  Map<String, ExerciseModel> get exercisesByCategory {
+    final map = <String, ExerciseModel>{};
     for (final exercise in _exercises) {
       map[exercise.categoria] = exercise;
     }

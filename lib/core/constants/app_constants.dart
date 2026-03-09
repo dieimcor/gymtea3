@@ -19,29 +19,34 @@ class AppConstants {
   // Series y repeticiones por defecto
   static const int activationSeries = 2;
   static const int activationReps = 15;
-  static const int strengtheningeries = 3;
+  static const int strengtheningSeries = 3;
   static const int strengtheningReps = 10;
 
-  // Progresión
-  static const int maxProgressionLevel = 7;
-  static const int minProgressionLevel = 1;
+  // Evaluación funcional
   static const int evaluationExerciseCount = 5;
   static const int minEvaluationScore = 5;
   static const int maxEvaluationScore = 20;
 
-  // Clasificación control motor
+  // Clasificación control motor (umbrales)
   static const int lowControlMax = 10;
   static const int moderateControlMax = 15;
   // 16-20 = Alto control
 
-  // Categorías de ejercicios
-  static const List<String> exerciseCategories = [
-    'RD', // Rodilla Dominante
-    'CD', // Cadera Dominante
-    'EM', // Empuje
-    'JL', // Jalón
-    'CR', // Core
-  ];
+  // Nivel de progresión — SIN LÍMITE FIJO.
+  // El nivel mínimo inicial siempre es 1.
+  // El máximo lo define el catálogo del backend (puede crecer).
+  static const int minProgressionLevel = 1;
+
+  // Categorías iniciales del Manual de Fuerza y Juegos.
+  // Son los valores por defecto; el backend puede agregar más
+  // dinámicamente sin necesidad de actualizar la app.
+  static const Map<String, String> defaultExerciseCategories = {
+    'RD': 'Rodilla Dominante',
+    'CD': 'Cadera Dominante',
+    'EM': 'Empuje',
+    'JL': 'Jalón',
+    'CR': 'Core',
+  };
 
   // Storage keys
   static const String tokenKey = 'jwt_token';
