@@ -1,43 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // Necesario para inicializar Firebase
-import 'screens/splash_screen.dart'; // Importamos la nueva pantalla de carga
+import 'package:gymtea3/data/services/storage_service.dart';
+import 'app.dart';
 
 void main() async {
-  // Aseguramos que el motor de Flutter esté listo antes de llamar a código nativo
+  // Asegurar que el motor de Flutter esté listo antes de código async
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializamos Firebase (conecta la app con la consola de Google)
-  await Firebase.initializeApp();
+  // Inicializar servicio de almacenamiento (SharedPreferences + SecureStorage)
+  final storageService = StorageService();
+  await storageService.init();
 
-  // Arrancamos la aplicación visual
-  runApp(const MiAplicacionTea());
-}
-
-class MiAplicacionTea extends StatelessWidget {
-  const MiAplicacionTea({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Misión Espacial TEA',
-      debugShowCheckedModeBanner: false, // Quitamos la etiqueta "DEBUG" de la esquina
-      theme: ThemeData(
-        useMaterial3: true,
-        // Configuración de colores basada en tu diseño del Alien
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF8BC34A), // Verde Alien Principal
-          primary: const Color(0xFF8BC34A),
-          secondary: const Color(0xFF689F38), // Verde más oscuro para contrastes
-          surface: const Color(0xFFF1F8E9),   // Color Crema (Fondo de tarjetas)
-        ),
-        // Definimos el color de texto por defecto para que combine
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Color(0xFF33691E)),
-        ),
-      ),
-      // --- PUNTO DE ENTRADA ---
-      // Ahora iniciamos en el SplashScreen para verificar la sesión automáticamente
-      home: const SplashScreen(),
-    );
-  }
+  // Arrancar la app con el servicio de storage inyectado
+  runApp(NeuroGymApp(storageService: storageService));
 }

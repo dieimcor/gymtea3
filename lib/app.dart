@@ -15,9 +15,13 @@ import 'package:gymtea3/data/repositories/exercise_repository.dart';
 import 'package:gymtea3/data/repositories/progress_repository.dart';
 
 // Screens
-import 'package:gymtea3/screens/splash_screen.dart';
+import 'package:gymtea3/presentation/screens/splash/splash_screen.dart';
+import 'package:gymtea3/presentation/screens/auth/login_screen.dart';
+import 'package:gymtea3/presentation/screens/home/home_screen.dart';
+import 'package:gymtea3/presentation/screens/exercises/level_map_screen.dart';
+import 'package:gymtea3/presentation/screens/exercises/exercise_session_screen.dart';
 
-/// NeuroGym — App principal
+/// NeuroGym — App principal con MultiProvider y rutas nombradas
 class NeuroGymApp extends StatelessWidget {
   final StorageService storageService;
 
@@ -50,15 +54,19 @@ class NeuroGymApp extends StatelessWidget {
         title: 'NeuroGym',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const SplashScreen(),
-        // TODO: Agregar rutas nombradas en Sprint 1
-        // routes: {
-        //   '/login': (context) => const LoginScreen(),
-        //   '/home': (context) => const HomeScreen(),
-        //   '/exercises': (context) => const LevelMapScreen(),
-        //   '/profile': (context) => const ProfileScreen(),
-        //   '/minigames': (context) => const MinigamesScreen(),
-        // },
+
+        // Ruta inicial
+        initialRoute: '/splash',
+
+        // Rutas nombradas
+        routes: {
+          '/splash': (context) => const SplashScreen(),
+          '/login': (context) => const LoginScreen(),
+          '/home': (context) => const HomeScreen(),
+          '/exercises/levels': (context) => const LevelMapScreen(),
+          '/exercises/session': (context) => const ExerciseSessionScreen(),
+          // TODO Fase 4: '/minigames/play'
+        },
       ),
     );
   }

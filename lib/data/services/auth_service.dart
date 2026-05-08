@@ -1,4 +1,5 @@
 import 'package:gymtea3/data/models/user_model.dart';
+import 'package:gymtea3/data/models/child_model.dart';
 
 /// Servicio de autenticación (mock por ahora, preparado para backend)
 class AuthService {
@@ -17,11 +18,23 @@ class AuthService {
         'user': UserModel(
           id: 'mock-user-001',
           rut: rut,
-          nombre: 'Padre Demo',
-          email: 'demo@neurogym.cl',
+          nombre: 'María González',
+          email: 'maria.gonzalez@neurogym.cl',
           rol: 'PADRE',
           childId: 'mock-child-001',
           createdAt: DateTime.now(),
+        ).toJson(),
+        'child': ChildModel(
+          id: 'mock-child-001',
+          nombre: 'Tomás González',
+          edad: 8,
+          parentId: 'mock-user-001',
+          enrolledBy: 'mock-psico-001',
+          condicion: CondicionNeurodivergente.tea,
+          controlMotor: ControlMotor.moderado,
+          nivelProgresionActual: 2,
+          nivelProgresionInicial: 1,
+          createdAt: DateTime.now().subtract(const Duration(days: 30)),
         ).toJson(),
       };
     }

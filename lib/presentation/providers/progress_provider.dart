@@ -21,6 +21,23 @@ class ProgressProvider extends ChangeNotifier {
   String? get error => _error;
   int get pendingSyncCount => _progressHistory.where((p) => !p.sincronizado).length;
 
+  /// Total de sesiones completadas
+  int get totalSessions => _progressHistory.length;
+
+  /// Tiempo total de entrenamiento en minutos
+  int get totalMinutes =>
+      _progressHistory.fold(0, (sum, p) => sum + p.tiempoRealSeg) ~/ 60;
+
+  /// Sesiones completadas hoy
+  int get todaySessions {
+    final now = DateTime.now();
+    return _progressHistory.where((p) =>
+      p.fecha.year == now.year &&
+      p.fecha.month == now.month &&
+      p.fecha.day == now.day
+    ).length;
+  }
+
   /// Registrar progreso de una sesión completada
   Future<void> recordProgress(ProgressModel progress) async {
     try {
@@ -31,6 +48,27 @@ class ProgressProvider extends ChangeNotifier {
       _error = 'Error al guardar progreso: $e';
       notifyListeners();
     }
+  }
+
+  /// Registrar progreso de sesión (convenience method desde la pantalla de sesión)
+  Future<void> recordSessionProgress({
+    required String childId,
+    required String sessionId,
+    required int level,
+    required List<String> completedExerciseIds,
+    required int elapsedSeconds,
+  }) async {
+    final progress = ProgressModel(
+      id: 'prog-${DateTime.now().millisecondsSinceEpoch}',
+      childId: childId,
+      sessionId: sessionId,
+      nivelCompletado: level,
+      ejerciciosCompletadosIds: completedExerciseIds,
+      tiempoRealSeg: elapsedSeconds,
+      fecha: DateTime.now(),
+      sincronizado: false,
+    );
+    await recordProgress(progress);
   }
 
   /// Cargar historial de progreso

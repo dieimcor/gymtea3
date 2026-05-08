@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gymtea3/data/models/exercise_model.dart';
+import 'package:gymtea3/data/models/session_model.dart';
 import 'package:gymtea3/data/repositories/exercise_repository.dart';
 
 /// Provider de ejercicios — gestiona estado de ejercicios y niveles
@@ -66,5 +67,26 @@ class ExerciseProvider extends ChangeNotifier {
   /// Obtener niveles disponibles
   Future<List<int>> getAvailableLevels() async {
     return await _exerciseRepository.getAvailableLevels();
+  }
+
+  /// Armar una SessionModel completa para un nivel dado
+  /// Reune: 5 activación + 5 fortalecimiento (1 por categoría) + 1 juego
+  Future<SessionModel> buildSession({
+    required String childId,
+    required int level,
+  }) async {
+    final activation = await _exerciseRepository.getActivationExercises(level);
+    final strengthening = await _exerciseRepository.getExercisesByLevel(level);
+    final game = await _exerciseRepository.getGameExercise(level);
+
+    return SessionModel(
+      id: 'session-${DateTime.now().millisecondsSinceEpoch}',
+      childId: childId,
+      nivel: level,
+      ejerciciosActivacion: activation,
+      ejerciciosFortalecimiento: strengthening,
+      juego: game,
+      fecha: DateTime.now(),
+    );
   }
 }
