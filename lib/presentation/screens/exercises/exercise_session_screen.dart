@@ -96,12 +96,15 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
       _blockIndex < _blocks.length ? _blocks[_blockIndex] : null;
 
   /// Ejercicios ya terminados (sus dos series completas).
-  Set<String> get _completedExerciseIds {
+  ///
+  /// [upTo] es el indice del primer bloque que todavia NO cuenta. Al
+  /// terminar la rutina hay que incluir el ultimo bloque, que si se hizo.
+  Set<String> _completedExerciseIds(int upTo) {
     final routine = _routine;
     if (routine == null) return {};
 
     final done = <String>{};
-    for (var i = 0; i < _blockIndex && i < _blocks.length; i++) {
+    for (var i = 0; i < upTo && i < _blocks.length; i++) {
       final block = _blocks[i];
       if (block.isRest || block.serie != routine.series) continue;
       done.add(block.exercise.id);
@@ -132,7 +135,8 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
       arguments: RatingScreenArgs(
         routine: routine,
         elapsedSeconds: _elapsedSeconds,
-        completedExerciseIds: _completedExerciseIds.toList(),
+        // +1: el bloque actual es el ultimo y tambien se completo.
+        completedExerciseIds: _completedExerciseIds(_blockIndex + 1).toList(),
       ),
     );
   }

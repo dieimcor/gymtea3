@@ -19,10 +19,16 @@ class CraterSpot {
   const CraterSpot(this.cx, this.cy, this.rx, this.ry);
 
   /// Los 4 cráteres del sprite, en el orden en que se recorren.
+  ///
+  /// El primero es la laguna de la cima: en `crater_1` está turquesa
+  /// apagada y en `crater_2` se enciende, así que es la que el arte
+  /// conquista primero.
   static const List<CraterSpot> all = [
+    // La cima va con cy negativa a proposito: el marcador queda flotando
+    // en el espacio, justo encima del crater.
+    CraterSpot(0.537, -0.055, 0.075, 0.055), // cima
     CraterSpot(0.186, 0.211, 0.075, 0.062), // arriba izquierda
     CraterSpot(0.727, 0.270, 0.105, 0.078), // arriba derecha
-    CraterSpot(0.547, 0.937, 0.052, 0.046), // abajo centro
     CraterSpot(0.289, 0.865, 0.146, 0.120), // abajo izquierda (el grande)
   ];
 }

@@ -29,15 +29,30 @@ class CraterMapScreen extends StatefulWidget {
   State<CraterMapScreen> createState() => _CraterMapScreenState();
 }
 
-class _CraterMapScreenState extends State<CraterMapScreen> {
+class _CraterMapScreenState extends State<CraterMapScreen>
+    with SingleTickerProviderStateMixin {
   bool _openingCrater = false;
+
+  /// Vaiven del marciano para que no se vea estatico.
+  late final AnimationController _floatController;
 
   @override
   void initState() {
     super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ExerciseProvider>().loadMapState();
     });
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
   }
 
   @override
@@ -243,18 +258,28 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
     // crater_1 = ninguno turquesa … crater_4 = tres turquesa
     final sprite = 'assets/images/craters/crater_${doneInZone.clamp(0, 3) + 1}.png';
 
+    // Aire sobre el cometa para los marcadores que flotan en el espacio
+    // (el de la cima) y para el marciano.
+    const headroom = 96.0;
+    final totalHeight = height + headroom;
+
     return SizedBox(
       width: viewportWidth,
-      height: height,
+      height: totalHeight,
       child: ClipRect(
         child: OverflowBox(
           minWidth: width,
           maxWidth: width,
-          minHeight: height,
-          maxHeight: height,
+          minHeight: totalHeight,
+          maxHeight: totalHeight,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Positioned.fill(
+              Positioned(
+                left: 0,
+                top: headroom,
+                width: width,
+                height: height,
                 child: Image.asset(
                   sprite,
                   fit: BoxFit.fill,
@@ -268,9 +293,66 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
                   spot: CraterSpot.all[(level - firstLevel) % _cratersPerComet],
                   width: width,
                   height: height,
+                  headroom: headroom,
+                ),
+              if (levels.contains(provider.highestUnlockedLevel))
+                _buildAlien(
+                  spot: CraterSpot.all[
+                      (provider.highestUnlockedLevel - firstLevel) %
+                          _cratersPerComet],
+                  width: width,
+                  height: height,
+                  headroom: headroom,
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// El marciano acompana al crater actual y flota suavemente. Al
+  /// conquistar un crater se desplaza al siguiente.
+  Widget _buildAlien({
+    required CraterSpot spot,
+    required double width,
+    required double height,
+    required double headroom,
+  }) {
+    const size = 72.0;
+
+    // Se para al costado del crater, un poco mas arriba. El clamp evita
+    // que se corte contra los bordes de la zona (el crater de la cima
+    // tiene cy negativa).
+    var left = spot.cx * width + spot.rx * width * 0.9;
+    if (left + size > width) {
+      left = spot.cx * width - spot.rx * width * 0.9 - size;
+    }
+    left = left.clamp(4.0, width - size - 4);
+
+    final top = (headroom + spot.cy * height - size * 1.15)
+        .clamp(10.0, headroom + height - size);
+
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeInOut,
+      left: left,
+      top: top,
+      width: size,
+      height: size,
+      child: AnimatedBuilder(
+        animation: _floatController,
+        builder: (context, child) {
+          final t = Curves.easeInOut.transform(_floatController.value);
+          return Transform.translate(
+            offset: Offset(0, -6 + t * 12),
+            child: child,
+          );
+        },
+        child: Image.asset(
+          'assets/images/mascota/alien.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
         ),
       ),
     );
@@ -282,6 +364,7 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
     required CraterSpot spot,
     required double width,
     required double height,
+    required double headroom,
   }) {
     final status = provider.isCompleted(level)
         ? CraterStatus.completed
@@ -294,7 +377,7 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
 
     return Positioned(
       left: spot.cx * width - w / 2,
-      top: spot.cy * height - h / 2,
+      top: headroom + spot.cy * height - h / 2,
       width: w,
       height: h,
       child: CraterMarker(

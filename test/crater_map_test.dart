@@ -168,8 +168,12 @@ void main() {
       expect(CraterSpot.all.length, 4);
       for (final spot in CraterSpot.all) {
         expect(spot.cx, inInclusiveRange(0.0, 1.0));
-        expect(spot.cy, inInclusiveRange(0.0, 1.0));
+        // cy puede ser negativa: el marcador de la cima flota sobre el
+        // cometa, en el espacio.
+        expect(spot.cy, inInclusiveRange(-0.2, 1.0));
       }
+      // La cima es el primero y es el unico que flota por encima.
+      expect(CraterSpot.all.first.cy, lessThan(0));
     });
 
     testWidgets('el pop-up lista los ejercicios y los tiempos del nivel',
@@ -215,8 +219,12 @@ void main() {
   group('Assets', () {
     test('los PNG declarados en el código existen en disco', () {
       const requeridos = [
-        'assets/images/craters/fondo_espacio.png',
-        'assets/images/craters/crater_base.png',
+        'assets/images/craters/fondo_estrellas.png',
+        // Un sprite por cantidad de crateres conquistados (0 a 3).
+        'assets/images/craters/crater_1.png',
+        'assets/images/craters/crater_2.png',
+        'assets/images/craters/crater_3.png',
+        'assets/images/craters/crater_4.png',
         'assets/images/mascota/alien.png',
         'assets/images/mascota/alien_calificacion.png',
       ];
