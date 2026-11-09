@@ -14,7 +14,17 @@ import 'package:gymtea3/presentation/widgets/crater_preview_dialog.dart';
 const double _cometAspect = 1080 / 982;
 
 /// Cráteres pintados en cada sprite.
-const int _cratersPerComet = 4;
+const int cratersPerComet = 4;
+
+/// Sprite del cometa según cuántos de sus cráteres se conquistaron.
+///
+/// El arte trae un estado por cada cantidad, de 0 a 4:
+/// `crater_1` ninguno · `crater_2` uno · `crater_3` dos · `crater_4` tres ·
+/// `crater_5` los cuatro (viene de "crater 4_1.png").
+String cometSpriteFor(int completed) {
+  final step = completed.clamp(0, cratersPerComet) + 1;
+  return 'assets/images/craters/crater_$step.png';
+}
 
 /// Pantalla principal — mapa de cráteres.
 ///
@@ -165,7 +175,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
 
   Widget _buildMap(ExerciseProvider provider) {
     // Cada cometa lleva hasta 4 cráteres; con 7 niveles son dos cometas.
-    final zones = (provider.visibleCraterCount / _cratersPerComet).ceil();
+    final zones = (provider.visibleCraterCount / cratersPerComet).ceil();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -248,15 +258,13 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     required double width,
     required double height,
   }) {
-    final firstLevel = zone * _cratersPerComet + 1;
+    final firstLevel = zone * cratersPerComet + 1;
     final levels = <int>[
-      for (int i = 0; i < _cratersPerComet; i++)
+      for (int i = 0; i < cratersPerComet; i++)
         if (firstLevel + i <= provider.visibleCraterCount) firstLevel + i,
     ];
 
-    final doneInZone = levels.where(provider.isCompleted).length;
-    // crater_1 = ninguno turquesa … crater_4 = tres turquesa
-    final sprite = 'assets/images/craters/crater_${doneInZone.clamp(0, 3) + 1}.png';
+    final sprite = cometSpriteFor(levels.where(provider.isCompleted).length);
 
     // Aire sobre el cometa para los marcadores que flotan en el espacio
     // (el de la cima) y para el marciano.
@@ -290,7 +298,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                 _buildMarker(
                   provider: provider,
                   level: level,
-                  spot: CraterSpot.all[(level - firstLevel) % _cratersPerComet],
+                  spot: CraterSpot.all[(level - firstLevel) % cratersPerComet],
                   width: width,
                   height: height,
                   headroom: headroom,
@@ -299,7 +307,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                 _buildAlien(
                   spot: CraterSpot.all[
                       (provider.highestUnlockedLevel - firstLevel) %
-                          _cratersPerComet],
+                          cratersPerComet],
                   width: width,
                   height: height,
                   headroom: headroom,

@@ -11,6 +11,7 @@ import 'package:gymtea3/data/models/routine_model.dart';
 import 'package:gymtea3/data/repositories/exercise_repository.dart';
 import 'package:gymtea3/data/services/level_progress_service.dart';
 import 'package:gymtea3/presentation/providers/exercise_provider.dart';
+import 'package:gymtea3/presentation/screens/home/crater_map_screen.dart';
 import 'package:gymtea3/presentation/widgets/crater_node.dart';
 import 'package:gymtea3/presentation/widgets/crater_preview_dialog.dart';
 
@@ -216,21 +217,45 @@ void main() {
     });
   });
 
+  group('Sprite del cometa', () {
+    test('un estado distinto por cada cantidad de conquistados', () {
+      final vistos = <String>{};
+      for (var done = 0; done <= cratersPerComet; done++) {
+        vistos.add(cometSpriteFor(done));
+      }
+      expect(vistos.length, cratersPerComet + 1);
+    });
+
+    test('ninguno conquistado usa el primer sprite', () {
+      expect(cometSpriteFor(0), endsWith('crater_1.png'));
+    });
+
+    test('los cuatro conquistados usan el sprite con todo turquesa', () {
+      expect(cometSpriteFor(cratersPerComet), endsWith('crater_5.png'));
+    });
+
+    test('no se pasa del ultimo sprite', () {
+      expect(cometSpriteFor(99), cometSpriteFor(cratersPerComet));
+    });
+  });
+
   group('Assets', () {
     test('los PNG declarados en el código existen en disco', () {
       const requeridos = [
         'assets/images/craters/fondo_estrellas.png',
-        // Un sprite por cantidad de crateres conquistados (0 a 3).
-        'assets/images/craters/crater_1.png',
-        'assets/images/craters/crater_2.png',
-        'assets/images/craters/crater_3.png',
-        'assets/images/craters/crater_4.png',
         'assets/images/mascota/alien.png',
         'assets/images/mascota/alien_calificacion.png',
       ];
 
       for (final ruta in requeridos) {
         expect(File(ruta).existsSync(), isTrue, reason: 'Falta $ruta');
+      }
+
+      // Un sprite por cada cantidad de cráteres conquistados, de 0 a 4.
+      for (var done = 0; done <= cratersPerComet; done++) {
+        final ruta = cometSpriteFor(done);
+        expect(File(ruta).existsSync(), isTrue,
+            reason: 'Falta el sprite de $done conquistados: $ruta');
       }
     });
   });
