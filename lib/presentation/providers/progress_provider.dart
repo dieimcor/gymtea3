@@ -57,6 +57,9 @@ class ProgressProvider extends ChangeNotifier {
     required int level,
     required List<String> completedExerciseIds,
     required int elapsedSeconds,
+    int? desempeno,
+    int? cansancio,
+    int? motivacion,
   }) async {
     final progress = ProgressModel(
       id: 'prog-${DateTime.now().millisecondsSinceEpoch}',
@@ -67,8 +70,18 @@ class ProgressProvider extends ChangeNotifier {
       tiempoRealSeg: elapsedSeconds,
       fecha: DateTime.now(),
       sincronizado: false,
+      desempeno: desempeno,
+      cansancio: cansancio,
+      motivacion: motivacion,
     );
     await recordProgress(progress);
+  }
+
+  /// Promedio de una dimensión de la autoevaluación (null si no hay datos).
+  double? averageRating(int? Function(ProgressModel) selector) {
+    final values = _progressHistory.map(selector).whereType<int>().toList();
+    if (values.isEmpty) return null;
+    return values.reduce((a, b) => a + b) / values.length;
   }
 
   /// Cargar historial de progreso

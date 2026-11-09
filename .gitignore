@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Material de referencia (assets fuente, manual, bibliografia): ~271 MB.
+# Lo que la app usa ya esta copiado en assets/images/.
+recursos/
+
 # Manual de ejercicios (material de referencia, no versionar)
 Manual Ejercicios/
 **/Manual-de-fuerza*.pdf

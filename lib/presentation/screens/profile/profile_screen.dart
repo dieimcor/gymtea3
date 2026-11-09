@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
-import 'package:gymtea3/data/models/child_model.dart';
 import 'package:gymtea3/presentation/providers/auth_provider.dart';
+import 'package:gymtea3/presentation/providers/exercise_provider.dart';
 
 /// Pantalla de Perfil — muestra datos del padre e hijo, cerrar sesión
 class ProfileScreen extends StatelessWidget {
@@ -11,6 +11,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final exerciseProvider = context.watch<ExerciseProvider>();
     final user = authProvider.currentUser;
     final child = authProvider.currentChild;
 
@@ -106,27 +107,19 @@ class ProfileScreen extends StatelessWidget {
                   label: 'Edad',
                   value: '${child.edad} años',
                 ),
-                _InfoRow(
-                  icon: Icons.psychology_outlined,
-                  label: 'Condición',
-                  value: _formatCondition(child.condicion),
-                ),
-                _InfoRow(
-                  icon: Icons.speed_rounded,
-                  label: 'Control Motor',
-                  value: _formatControlMotor(child.controlMotor),
-                  valueColor: _controlMotorColor(child.controlMotor),
-                ),
+                // El perfilamiento (condición, control motor, nivel asignado)
+                // queda fuera por ahora: el avance lo define el mapa.
                 _InfoRow(
                   icon: Icons.trending_up_rounded,
-                  label: 'Nivel Actual',
-                  value: '${child.nivelProgresionActual} / 7',
+                  label: 'Cráteres completados',
+                  value: '${exerciseProvider.completedLevels.length}'
+                      ' / ${exerciseProvider.visibleCraterCount}',
                   valueColor: AppTheme.primaryGreen,
                 ),
                 _InfoRow(
                   icon: Icons.flag_outlined,
-                  label: 'Nivel Inicial',
-                  value: '${child.nivelProgresionInicial}',
+                  label: 'Cráter disponible',
+                  value: '${exerciseProvider.highestUnlockedLevel}',
                 ),
               ])
             else
@@ -173,6 +166,32 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 32),
 
+            // Reiniciar el avance del mapa de cráteres
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmResetProgress(context),
+                icon: const Icon(Icons.restart_alt_rounded),
+                label: const Text(
+                  'Reiniciar avance',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.goldAccent,
+                  side: BorderSide(
+                    color: AppTheme.goldAccent.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
             // Botón cerrar sesión
             SizedBox(
               width: double.infinity,
@@ -197,6 +216,42 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmResetProgress(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '¿Reiniciar el avance?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Todos los cráteres volverán a bloquearse y los ejercicios ya '
+          'sorteados podrán repetirse.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final provider = dialogContext.read<ExerciseProvider>();
+              Navigator.pop(dialogContext);
+              await provider.resetProgress();
+            },
+            child: Text(
+              'Reiniciar',
+              style: TextStyle(color: AppTheme.goldAccent),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -344,42 +399,8 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  String _formatCondition(CondicionNeurodivergente condicion) {
-    switch (condicion) {
-      case CondicionNeurodivergente.tea:
-        return 'TEA';
-      case CondicionNeurodivergente.tdah:
-        return 'TDAH';
-      case CondicionNeurodivergente.tel:
-        return 'TEL';
-      case CondicionNeurodivergente.mixto:
-        return 'Mixto';
-      case CondicionNeurodivergente.otro:
-        return 'Otro';
-    }
-  }
 
-  String _formatControlMotor(ControlMotor control) {
-    switch (control) {
-      case ControlMotor.bajo:
-        return 'Bajo';
-      case ControlMotor.moderado:
-        return 'Moderado';
-      case ControlMotor.alto:
-        return 'Alto';
-    }
-  }
 
-  Color _controlMotorColor(ControlMotor control) {
-    switch (control) {
-      case ControlMotor.bajo:
-        return AppTheme.levelLow;
-      case ControlMotor.moderado:
-        return AppTheme.levelModerate;
-      case ControlMotor.alto:
-        return AppTheme.levelHigh;
-    }
-  }
 }
 
 /// Helper para filas de información

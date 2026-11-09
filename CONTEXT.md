@@ -89,90 +89,141 @@ lib/
 ├── main.dart                         → Entry point
 ├── app.dart                          → MaterialApp + MultiProvider + Tema
 ├── core/
-│   ├── constants/app_constants.dart   → URLs API, duraciones, keys
+│   ├── constants/app_constants.dart   → URLs API, tiempos fijos, keys
 │   ├── theme/app_theme.dart          → ThemeData dark + colores por categoría
 │   ├── network/api_client.dart       → HTTP client centralizado con JWT
 │   └── errors/exceptions.dart        → AuthException, NetworkException, etc.
 ├── data/
 │   ├── models/
 │   │   ├── user_model.dart           → Padre (RUT, email, rol)
-│   │   ├── child_model.dart          → Niño (condición, control motor, nivel)
-│   │   ├── evaluation_model.dart     → Rúbrica 5 ejercicios, cálculo nivel
-│   │   ├── exercise_model.dart       → Ejercicio + categoría + nivel + fase
-│   │   ├── session_model.dart        → Sesión 3 fases (15 min)
-│   │   └── progress_model.dart       → Progreso + flag sincronizado
+│   │   ├── child_model.dart          → Niño
+│   │   ├── evaluation_model.dart     → Rúbrica (en pausa, sin uso en la UI)
+│   │   ├── difficulty.dart           → Dificultad: ejercicios, series, descanso
+│   │   ├── exercise_model.dart       → Ejercicio + categoría + dificultad + imagen
+│   │   ├── routine_model.dart        → Rutina plana de un cráter
+│   │   └── progress_model.dart       → Progreso + calificación + flag sync
 │   ├── repositories/
 │   │   ├── auth_repository.dart      → Login RUT + JWT + session
-│   │   ├── exercise_repository.dart  → Ejercicios por nivel (mock → API)
+│   │   ├── exercise_repository.dart  → Pools por dificultad + sorteo aleatorio
 │   │   └── progress_repository.dart  → Cache local + sync backend
 │   ├── datasources/
 │   │   ├── local/exercise_local_ds.dart   → SQLite (Sprint 3)
 │   │   └── remote/exercise_remote_ds.dart → API REST (Sprint 4+)
 │   └── services/
 │       ├── auth_service.dart         → Lógica auth (mock → API)
-│       └── storage_service.dart      → Token seguro + SharedPreferences
+│       ├── storage_service.dart      → Token seguro + SharedPreferences
+│       └── level_progress_service.dart → Desbloqueo + ejercicios ya sorteados
 ├── presentation/
 │   ├── screens/
 │   │   ├── splash/splash_screen.dart
 │   │   ├── auth/login_screen.dart
-│   │   ├── home/home_screen.dart
+│   │   ├── home/crater_map_screen.dart     → Pantalla principal (cráteres)
 │   │   ├── exercises/
-│   │   │   ├── level_map_screen.dart
-│   │   │   └── exercise_session_screen.dart
+│   │   │   ├── exercise_session_screen.dart → Rutina plana + timers
+│   │   │   └── rating_screen.dart           → Califica tu progreso + resumen
 │   │   ├── minigames/minigames_screen.dart
 │   │   └── profile/profile_screen.dart
 │   ├── widgets/
 │   │   ├── fondo_app.dart            → Background existente del proyecto
 │   │   ├── rut_input_field.dart
-│   │   └── session_timer_widget.dart
+│   │   ├── crater_node.dart          → Nodo de cráter del mapa
+│   │   ├── crater_preview_dialog.dart → Pop-up de ejercicios del nivel
+│   │   ├── exercise_image.dart       → Imagen con placeholder por nombre
+│   │   └── session_timer_widget.dart → Timer circular (serie / descanso)
 │   └── providers/
 │       ├── auth_provider.dart        → Estado login/logout/sesión
-│       ├── exercise_provider.dart    → Ejercicios por nivel y categoría
-│       └── progress_provider.dart    → Registro + sync progreso
-└── utils/
-    ├── rut_validator.dart            → Validación RUT módulo 11
-    └── formatters.dart               → Fechas, duración, categorías
+│       ├── exercise_provider.dart    → Mapa de cráteres + sorteo de rutinas
+│       └── progress_provider.dart    → Registro + calificación + sync
+├── utils/
+│   ├── rut_validator.dart            → Validación RUT módulo 11
+│   └── formatters.dart               → Fechas, duración, categorías
+assets/images/
+├── craters/      → fondo_espacio, crater_base, crater_1..7
+├── mascota/      → alien, alien_calificacion
+└── ejercicios/   → <id>.png (opcional; si falta → placeholder)
 ```
 
 ---
 
 ## 5. Sistema de Ejercicios
 
-### Evaluación Funcional (5 ejercicios, puntaje 1-4 cada uno)
-1. Sentadilla de arranque → Flexión rodilla/cadera
-2. Bisagra de cadera → Activación cadera
-3. Lanzamiento balón medicinal → Fuerza desde rodillas
-4. Arrastre de corebag → Jalón + estabilidad
-5. Superman → Core + extensión
+> **Actualizado (nov 2026).** Se retiró la sesión de 3 fases y la pantalla de
+> configuración de tiempos. El perfilamiento y la evaluación funcional quedan
+> **fuera de alcance por ahora**: el avance lo define el mapa de cráteres.
 
-### Clasificación Control Motor
-| Puntaje Total | Clasificación |
-|--------------|---------------|
-| 5-10 | BAJO |
-| 11-15 | MODERADO |
-| 16-20 | ALTO (+1 al promedio) |
+### Mapa de Cráteres (pantalla principal)
 
-**Cálculo nivel:** `Promedio = Total ÷ 5` → redondeado → Si ALTO, sumar +1 → Nivel inicial (1-7)
+La pantalla principal es el mapa: **un cráter por nivel**.
 
-### Tabla de Progresión (7 niveles × 5 categorías = 35 ejercicios)
+- Se parte con el **cráter 1** abierto; completar un cráter abre el siguiente.
+- Se muestran **4 cráteres**; los niveles 5-7 se revelan al superar esos cuatro.
+- El avance se guarda local (`SharedPreferences`), sin backend ni evaluación.
 
-| Categoría | Código | Ejemplo Nivel 1 |
-|-----------|--------|-----------------|
+### Dificultad por nivel
+
+| Niveles | Dificultad | Ejercicios | Series | Trabajo | Descanso |
+|---------|-----------|-----------|--------|---------|----------|
+| 1-2 | Fácil | 3 | 2 | 60 s | 20 s |
+| 3-5 | Medio | 4 | 2 | 60 s | 25 s |
+| 6-7 | Difícil | 5 | 2 | 60 s | 30 s |
+
+El descanso es **incremental según la dificultad** y aplica tanto entre series
+como entre ejercicios. Los valores son fijos: el padre ya no los elige.
+
+### Rutina (`RoutineModel`)
+
+Lista plana de bloques: `serie (60 s) → descanso → serie → …`, sin descanso
+final. La secuencia la arma `ExerciseSessionScreen`.
+
+### Sorteo aleatorio sin repetición
+
+Cada vez que se abre un cráter se **re-randomiza** su rutina:
+
+1. Se toma el pool de la dificultad del nivel.
+2. Se excluyen los ejercicios ya sorteados en otros cráteres (persistido).
+3. Si el pool restante no alcanza, el registro de esa dificultad se reinicia solo.
+
+Volver a sortear desde el pop-up libera la selección anterior, para no quemar
+ejercicios que no se van a ejecutar.
+
+### Pop-up de nivel (estilo Mario Party)
+
+Al tocar un cráter se abre `CraterPreviewDialog` con los ejercicios que
+tocaron (imagen + nombre + categoría), la dificultad, los tiempos y la
+duración estimada. Botones: **Sortear** y **¡Comenzar!**.
+
+### Imágenes de ejercicios
+
+Cada ejercicio tiene `imagenAsset`, por defecto
+`assets/images/ejercicios/<id>.png`. Si el PNG no existe, `ExerciseImage`
+muestra un **placeholder con el nombre** del ejercicio: basta dejar caer el
+archivo con ese nombre para que aparezca, sin tocar código.
+
+### Califica tu progreso
+
+Al terminar el cráter, antes del resumen, `RatingScreen` pide **1 a 5
+estrellas** en **desempeño**, **cansancio** y **motivación**. Se guarda junto
+al progreso local (`sincronizado = false`) para enviarse al backend cuando
+exista. Se puede saltar.
+
+### Categorías de ejercicios
+
+| Categoría | Código | Ejemplo |
+|-----------|--------|---------|
 | Rodilla Dominante | RD | Pararse/sentarse de banco |
 | Cadera Dominante | CD | Puente glúteo dinámico |
 | Empuje | EM | Empuje balón medicinal acostado |
 | Jalón | JL | Remo al pecho elástico 2 manos |
 | Core | CR | Extensiones tronco 1 brazo |
+| Movilidad y Juego | MOV | Rayuela, salto estrella, paso lateral |
 | *(nuevas)* | *Backend* | *Se agregan sin tocar la app* |
 
-### Estructura de Sesión (15 minutos — AMRAP adaptado)
-| Fase | Duración | Detalle |
-|------|----------|---------|
-| Activación | 2 min | 5 ejercicios neuromuscular, 2×15 reps |
-| Fortalecimiento | 8 min | 5 ejercicios (1 por categoría), 3×10 reps |
-| Juego | 5 min | Circuito o juego de fuerza |
+### Evaluación Funcional — en pausa
 
----
+La rúbrica de 5 ejercicios, la clasificación de control motor y el nivel
+asignado **siguen modelados** (`evaluation_model.dart`, campos de
+`ChildModel`) pero **ninguna pantalla los usa**. Se retoman cuando exista el
+dashboard del psicopedagogo.
 
 ## 6. Minijuegos
 
@@ -287,14 +338,16 @@ El módulo interpreta la evaluación funcional y sugiere:
 
 ```
 Splash → ¿JWT válido?
-  NO → Login (RUT + pass) → Home
-  SÍ → Home
-          ├── Ejercicios → Mapa 7 Niveles → Sesión Activa (3 fases) → Resumen
-          ├── Minijuegos → Lista → Juego Activo
-          └── Perfil → Info padre + niño · Cerrar sesión
+  NO → Login (RUT + pass) → Mapa de Cráteres
+  SÍ → Mapa de Cráteres
+          ├── Cráter N → Pop-up de ejercicios → Sesión → Califica tu progreso → Resumen
+          ├── Minijuegos (icono superior)
+          └── Perfil (icono superior) → Datos · Reiniciar avance · Cerrar sesión
 ```
 
----
+> El antiguo Home con bottom navigation y el mapa vertical de 7 niveles fueron
+> reemplazados por el mapa de cráteres. No hay pantalla de configuración de
+> tiempos.
 
 ## 13. Plan de Sprints (~10 semanas)
 
@@ -314,39 +367,49 @@ Splash → ¿JWT válido?
 
 ---
 
-## 14. Estado Actual (Sprint 0 — Completado)
+## 14. Estado Actual
 
-### Archivos creados
-- **Core:** `app_constants.dart`, `app_theme.dart`, `api_client.dart`, `exceptions.dart`
-- **Models:** 6 modelos con JSON serialization y enums
-- **Repos:** `auth_repository.dart`, `exercise_repository.dart` (con mock data niveles 1-2), `progress_repository.dart`
-- **Services:** `auth_service.dart` (mock), `storage_service.dart`
-- **DataSources:** Placeholders para SQLite y API
-- **Providers:** `auth_provider.dart`, `exercise_provider.dart`, `progress_provider.dart`
-- **Utils:** `rut_validator.dart` (módulo 11), `formatters.dart`
-- **App:** `app.dart` con MultiProvider
+### Actualización de requerimientos (nov 2026)
+
+Aplicados los cambios de `recursos/actualizacion24oct.txt`:
+
+| Requerimiento | Estado |
+|---------------|--------|
+| Menú de cráteres como pantalla principal | ✅ `CraterMapScreen` reemplaza al Home con bottom nav |
+| Sacar la configuración de tiempos (settings) | ✅ Tiempos fijos en `AppConstants` / `Dificultad` |
+| Imagen por ejercicio (placeholder de texto) | ✅ `ExerciseImage` + campo `imagenAsset` |
+| Tiempos de 30 s → 1 minuto | ✅ `AppConstants.exerciseSeconds = 60` |
+| Descanso de 20 s entre ejercicios | ✅ Piso del nivel fácil |
+| Descansos incrementales por dificultad | ✅ 20 / 25 / 30 s |
+| Randomizar al elegir cráter, sin repetir | ✅ Pools + registro persistido |
+| Pop-up de ejercicios del nivel (Mario Party) | ✅ `CraterPreviewDialog` |
+| 3 / 4 / 5 ejercicios × 2 series | ✅ `Dificultad.exerciseCount` |
+| "Califica tu progreso" (1-5 estrellas × 3) | ✅ `RatingScreen` |
+
+**Fuera de alcance por ahora:** "Matar al alien" (el alien queda solo como
+mascota), perfilamiento y evaluación previa del niño.
+
+### Retirado del código
+
+- `session_model.dart` (sesión de 3 fases) → `routine_model.dart`
+- `home_screen.dart`, `level_map_screen.dart` → `crater_map_screen.dart`
+- `phase_indicator.dart`, `level_node.dart`, `exercise_card.dart`
+- Enum `FaseSesion` y el reparto activación/fortalecimiento/juego
 
 ### Dependencias activas (pubspec.yaml)
 ```yaml
-provider: ^6.1.1
-http: ^1.1.0
+provider: ^6.1.2
+http: ^1.2.0
 flutter_secure_storage: ^9.0.0
 sqflite: ^2.3.0
-connectivity_plus: ^5.0.2
+connectivity_plus: ^5.0.0
 intl: ^0.19.0
 shared_preferences: ^2.2.2
 ```
 
-### Dependencias comentadas (Firebase)
-```yaml
-# firebase_core: ^3.8.1
-# firebase_auth: ^5.4.1
-# google_sign_in: ^6.2.2
-```
-
-### .gitignore
-- `Manual Ejercicios/` y PDFs/DOCs del manual
-- `docs/` (informes técnicos locales)
+### Tests
+`test/routine_test.dart` cubre el mapeo nivel → dificultad, los tiempos y el
+sorteo sin repetición (incluido el caso de pool agotado).
 
 ---
 
@@ -356,9 +419,9 @@ shared_preferences: ^2.2.2
 2. **RUT como login:** Reemplaza Firebase Auth, más natural para el contexto chileno
 3. **Firebase comentado:** No eliminado, por si se necesita reactivar
 4. **Mock data primero:** Repositorios con datos mock hasta tener backend
-5. **Psicopedagogo decide:** La IA sugiere, nunca impone
+5. **Psicopedagogo decide:** La IA sugiere, nunca impone (en pausa hasta el dashboard)
 6. **Minijuegos sin sync:** No envían datos al backend, son locales
-7. **Sesiones de 15 min:** Formato AMRAP adaptado para niños
-8. **Progresión por nivel:** 7 niveles × 5 categorías × 3 fases de sesión
+7. **Rutina por cráter:** 3/4/5 ejercicios × 2 series × 60 s, sin fases
+8. **Progresión por cráter:** completar uno abre el siguiente; sin evaluación previa
 9. **Informe al padre solo mensual:** No sobrecargar con datos diarios
 10. **Tema oscuro:** Definido en `app_theme.dart` con colores por categoría de ejercicio

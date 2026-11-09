@@ -80,6 +80,12 @@ flutter:
   assets:
     # Y el guión "-" lleva 4 espacios al inicio
     - assets/images/
+    - assets/images/craters/
+    - assets/images/mascota/
+    # Ilustraciones de ejercicios: el archivo debe llamarse como el id del
+    # ejercicio (assets/images/ejercicios/<id>.png). Si falta, la tarjeta
+    # muestra un placeholder con el nombre.
+    - assets/images/ejercicios/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

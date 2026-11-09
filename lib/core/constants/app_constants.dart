@@ -10,31 +10,34 @@ class AppConstants {
   static const String appName = 'NeuroGym';
   static const String appVersion = '1.0.0';
 
-  // Sesión de ejercicios (valores por defecto)
-  static const int defaultSessionDurationMin = 15;
-  static const int activationDurationMin = 2;
-  static const int strengtheningDurationMin = 8;
-  static const int gameDurationMin = 5;
+  // ------------------------------------------------------------
+  // Rutina de ejercicios — valores FIJOS.
+  // La pantalla de configuración de tiempos fue retirada a propósito:
+  // el padre ya no elige duraciones, las define la dificultad del cráter.
+  // ------------------------------------------------------------
 
-  // Series y repeticiones por defecto
-  static const int activationSeries = 2;
-  static const int activationReps = 15;
-  static const int strengtheningSeries = 3;
-  static const int strengtheningReps = 10;
+  /// Duración de cada serie de un ejercicio (1 minuto).
+  static const int exerciseSeconds = 60;
 
-  // Evaluación funcional
-  static const int evaluationExerciseCount = 5;
-  static const int minEvaluationScore = 5;
-  static const int maxEvaluationScore = 20;
+  /// Series por ejercicio en todas las dificultades.
+  static const int seriesPerExercise = 2;
 
-  // Clasificación control motor (umbrales)
-  static const int lowControlMax = 10;
-  static const int moderateControlMax = 15;
-  // 16-20 = Alto control
+  /// Descanso base entre ejercicios y entre series (nivel fácil).
+  /// Las dificultades superiores lo incrementan — ver [Dificultad].
+  static const int baseRestSeconds = 20;
 
-  // Nivel de progresión — SIN LÍMITE FIJO.
-  // El nivel mínimo inicial siempre es 1.
-  // El máximo lo define el catálogo del backend (puede crecer).
+  // ------------------------------------------------------------
+  // Mapa de cráteres
+  // ------------------------------------------------------------
+
+  /// Cráteres visibles al inicio. Los siguientes se revelan al
+  /// completar todos estos.
+  static const int initialCraterCount = 4;
+
+  /// Total de cráteres del mapa (1 por nivel de progresión).
+  static const int totalCraterCount = 7;
+
+  /// Nivel mínimo, siempre desbloqueado.
   static const int minProgressionLevel = 1;
 
   // Categorías iniciales del Manual de Fuerza y Juegos.
@@ -46,10 +49,17 @@ class AppConstants {
     'EM': 'Empuje',
     'JL': 'Jalón',
     'CR': 'Core',
+    'MOV': 'Movilidad y Juego',
   };
 
   // Storage keys
   static const String tokenKey = 'jwt_token';
   static const String refreshTokenKey = 'refresh_token';
   static const String userDataKey = 'user_data';
+
+  /// Niveles completados al menos una vez (CSV de enteros).
+  static const String completedLevelsKey = 'completed_levels';
+
+  /// Ids de ejercicios ya sorteados en la ronda actual (CSV).
+  static const String usedExerciseIdsKey = 'used_exercise_ids';
 }

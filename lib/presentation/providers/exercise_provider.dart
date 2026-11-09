@@ -1,92 +1,148 @@
 import 'package:flutter/material.dart';
-import 'package:gymtea3/data/models/exercise_model.dart';
-import 'package:gymtea3/data/models/session_model.dart';
-import 'package:gymtea3/data/repositories/exercise_repository.dart';
 
-/// Provider de ejercicios — gestiona estado de ejercicios y niveles
+import 'package:gymtea3/core/constants/app_constants.dart';
+import 'package:gymtea3/data/models/difficulty.dart';
+import 'package:gymtea3/data/models/exercise_model.dart';
+import 'package:gymtea3/data/models/routine_model.dart';
+import 'package:gymtea3/data/repositories/exercise_repository.dart';
+import 'package:gymtea3/data/services/level_progress_service.dart';
+
+/// Provider del mapa de cráteres y de las rutinas sorteadas.
 class ExerciseProvider extends ChangeNotifier {
   final ExerciseRepository _exerciseRepository;
+  final LevelProgressService _levelProgress;
 
-  ExerciseProvider({required ExerciseRepository exerciseRepository})
-      : _exerciseRepository = exerciseRepository;
+  ExerciseProvider({
+    required ExerciseRepository exerciseRepository,
+    required LevelProgressService levelProgressService,
+  })  : _exerciseRepository = exerciseRepository,
+        _levelProgress = levelProgressService;
 
-  List<ExerciseModel> _exercises = [];
-  int _currentLevel = 1;
+  Set<int> _completedLevels = {};
+  int _highestUnlockedLevel = AppConstants.minProgressionLevel;
+  int _visibleCraterCount = AppConstants.initialCraterCount;
   bool _isLoading = false;
   String? _error;
-  List<int> _availableLevels = [];
-  List<String> _availableCategories = [];
+
+  /// Rutina sorteada para el cráter que se está previsualizando.
+  RoutineModel? _previewRoutine;
 
   // Getters
-  List<ExerciseModel> get exercises => _exercises;
-  int get currentLevel => _currentLevel;
+  Set<int> get completedLevels => _completedLevels;
+  int get highestUnlockedLevel => _highestUnlockedLevel;
+  int get visibleCraterCount => _visibleCraterCount;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  List<int> get availableLevels => _availableLevels;
-  List<String> get availableCategories => _availableCategories;
+  RoutineModel? get previewRoutine => _previewRoutine;
 
-  /// Cargar ejercicios de un nivel específico
-  Future<void> loadExercisesForLevel(int level) async {
+  /// Niveles visibles del mapa, de 1 a [visibleCraterCount].
+  List<int> get visibleLevels =>
+      List.generate(_visibleCraterCount, (i) => i + 1);
+
+  bool isUnlocked(int level) => level <= _highestUnlockedLevel;
+  bool isCompleted(int level) => _completedLevels.contains(level);
+
+  /// Carga el estado del mapa desde el almacenamiento local.
+  Future<void> loadMapState() async {
     _isLoading = true;
-    _error = null;
     notifyListeners();
 
     try {
-      _exercises = await _exerciseRepository.getExercisesByLevel(level);
-      _currentLevel = level;
-      _isLoading = false;
-      notifyListeners();
+      _completedLevels = await _levelProgress.getCompletedLevels();
+      _highestUnlockedLevel = await _levelProgress.getHighestUnlockedLevel();
+      _visibleCraterCount = await _levelProgress.getVisibleCraterCount();
+      _error = null;
     } catch (e) {
-      _error = 'Error al cargar ejercicios: $e';
-      _isLoading = false;
-      notifyListeners();
+      _error = 'Error al cargar el mapa: $e';
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  /// Cargar categorías y niveles disponibles (dinámico desde backend)
-  Future<void> loadAvailableFilters() async {
-    try {
-      _availableLevels = await _exerciseRepository.getAvailableLevels();
-      _availableCategories = await _exerciseRepository.getAvailableCategories();
-      notifyListeners();
-    } catch (e) {
-      _error = 'Error al cargar filtros: $e';
-      notifyListeners();
-    }
-  }
-
-  /// Obtener ejercicios agrupados por categoría (String key)
-  Map<String, ExerciseModel> get exercisesByCategory {
-    final map = <String, ExerciseModel>{};
-    for (final exercise in _exercises) {
-      map[exercise.categoria] = exercise;
-    }
-    return map;
-  }
-
-  /// Obtener niveles disponibles
-  Future<List<int>> getAvailableLevels() async {
-    return await _exerciseRepository.getAvailableLevels();
-  }
-
-  /// Armar una SessionModel completa para un nivel dado
-  /// Reune: 5 activación + 5 fortalecimiento (1 por categoría) + 1 juego
-  Future<SessionModel> buildSession({
+  /// Sortea la rutina de un cráter.
+  ///
+  /// Los ejercicios se eligen al azar del pool de la dificultad del nivel,
+  /// excluyendo los ya sorteados en otros cráteres. Cuando el pool se agota
+  /// el registro se reinicia solo y vuelve a empezar.
+  ///
+  /// Se llama cada vez que se abre el cráter, así que entrar de nuevo
+  /// re-randomiza la selección.
+  Future<RoutineModel> buildRoutine({
     required String childId,
     required int level,
   }) async {
-    final activation = await _exerciseRepository.getActivationExercises(level);
-    final strengthening = await _exerciseRepository.getExercisesByLevel(level);
-    final game = await _exerciseRepository.getGameExercise(level);
+    final dificultad = Dificultad.forLevel(level);
+    final count = dificultad.exerciseCount;
 
-    return SessionModel(
-      id: 'session-${DateTime.now().millisecondsSinceEpoch}',
+    // Si lo que queda del pool no alcanza para una rutina completa,
+    // reiniciamos el registro de esa dificultad antes de sortear.
+    final poolIds =
+        (await _exerciseRepository.getPool(dificultad)).map((e) => e.id).toSet();
+    var used = await _levelProgress.getUsedExerciseIds();
+    final remaining = poolIds.difference(used).length;
+    if (remaining < count) {
+      await _levelProgress.removeUsedExerciseIds(poolIds);
+      used = await _levelProgress.getUsedExerciseIds();
+    }
+
+    final ejercicios = await _exerciseRepository.pickRandom(
+      dificultad: dificultad,
+      count: count,
+      excludeIds: used,
+    );
+
+    // Liberamos la selección anterior de la preview: si el usuario vuelve a
+    // sortear, esos ejercicios no deben quedar quemados.
+    final previous = _previewRoutine;
+    if (previous != null && previous.nivel == level) {
+      await _levelProgress
+          .removeUsedExerciseIds(previous.ejercicios.map((e) => e.id));
+    }
+
+    await _levelProgress.addUsedExerciseIds(ejercicios.map((e) => e.id));
+
+    final routine = RoutineModel(
+      id: 'routine-${DateTime.now().millisecondsSinceEpoch}',
       childId: childId,
       nivel: level,
-      ejerciciosActivacion: activation,
-      ejerciciosFortalecimiento: strengthening,
-      juego: game,
+      dificultad: dificultad,
+      ejercicios: ejercicios,
       fecha: DateTime.now(),
     );
+
+    _previewRoutine = routine;
+    notifyListeners();
+    return routine;
   }
+
+  /// Descarta la rutina previsualizada y libera sus ejercicios.
+  Future<void> discardPreview() async {
+    final preview = _previewRoutine;
+    if (preview == null) return;
+
+    await _levelProgress
+        .removeUsedExerciseIds(preview.ejercicios.map((e) => e.id));
+    _previewRoutine = null;
+    notifyListeners();
+  }
+
+  /// Marca un cráter como completado y recalcula el desbloqueo.
+  Future<void> completeLevel(int level) async {
+    await _levelProgress.markLevelCompleted(level);
+    _previewRoutine = null;
+    await loadMapState();
+  }
+
+  /// Reinicia todo el avance del mapa (uso de pruebas / perfil).
+  Future<void> resetProgress() async {
+    await _levelProgress.resetAll();
+    _previewRoutine = null;
+    await loadMapState();
+  }
+
+  /// Pool de una dificultad (para pantallas de consulta).
+  Future<List<ExerciseModel>> getPool(Dificultad dificultad) =>
+      _exerciseRepository.getPool(dificultad);
+
 }

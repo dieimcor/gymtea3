@@ -10,6 +10,7 @@ import 'package:gymtea3/presentation/providers/progress_provider.dart';
 // Services & Repositories
 import 'package:gymtea3/data/services/auth_service.dart';
 import 'package:gymtea3/data/services/storage_service.dart';
+import 'package:gymtea3/data/services/level_progress_service.dart';
 import 'package:gymtea3/data/repositories/auth_repository.dart';
 import 'package:gymtea3/data/repositories/exercise_repository.dart';
 import 'package:gymtea3/data/repositories/progress_repository.dart';
@@ -17,9 +18,10 @@ import 'package:gymtea3/data/repositories/progress_repository.dart';
 // Screens
 import 'package:gymtea3/presentation/screens/splash/splash_screen.dart';
 import 'package:gymtea3/presentation/screens/auth/login_screen.dart';
-import 'package:gymtea3/presentation/screens/home/home_screen.dart';
-import 'package:gymtea3/presentation/screens/exercises/level_map_screen.dart';
+import 'package:gymtea3/presentation/screens/home/crater_map_screen.dart';
 import 'package:gymtea3/presentation/screens/exercises/exercise_session_screen.dart';
+import 'package:gymtea3/presentation/screens/exercises/rating_screen.dart';
+import 'package:gymtea3/presentation/screens/minigames/minigames_screen.dart';
 
 /// NeuroGym — App principal con MultiProvider y rutas nombradas
 class NeuroGymApp extends StatelessWidget {
@@ -42,6 +44,7 @@ class NeuroGymApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => ExerciseProvider(
             exerciseRepository: ExerciseRepository(),
+            levelProgressService: LevelProgressService(),
           ),
         ),
         ChangeNotifierProvider(
@@ -62,10 +65,13 @@ class NeuroGymApp extends StatelessWidget {
         routes: {
           '/splash': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/exercises/levels': (context) => const LevelMapScreen(),
+
+          // El mapa de cráteres es ahora la pantalla principal.
+          '/home': (context) => const CraterMapScreen(),
+
           '/exercises/session': (context) => const ExerciseSessionScreen(),
-          // TODO Fase 4: '/minigames/play'
+          RatingScreen.routeName: (context) => const RatingScreen(),
+          MinigamesScreen.routeName: (context) => const MinigamesScreen(),
         },
       ),
     );
