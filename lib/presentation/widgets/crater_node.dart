@@ -5,24 +5,48 @@ import 'package:gymtea3/data/models/difficulty.dart';
 
 enum CraterStatus { completed, available, locked }
 
-/// Cráter del mapa principal — un cráter por nivel.
+/// Posición de un cráter pintado en el sprite del cometa.
 ///
-/// Se dibuja en Flutter (no es un sprite) para que escale a cualquier
-/// cantidad de niveles manteniendo la paleta de la ilustración:
-/// boca marrón = disponible, laguna turquesa = completado, apagado = bloqueado.
-class CraterNode extends StatelessWidget {
+/// Las coordenadas son fracciones del tamaño de la imagen y salieron de
+/// medir las bocas de los cráteres en el arte, así que el marcador cae
+/// justo encima del cráter dibujado.
+class CraterSpot {
+  final double cx;
+  final double cy;
+  final double rx;
+  final double ry;
+
+  const CraterSpot(this.cx, this.cy, this.rx, this.ry);
+
+  /// Los 4 cráteres del sprite, en el orden en que se recorren.
+  static const List<CraterSpot> all = [
+    CraterSpot(0.186, 0.211, 0.075, 0.062), // arriba izquierda
+    CraterSpot(0.727, 0.270, 0.105, 0.078), // arriba derecha
+    CraterSpot(0.547, 0.937, 0.052, 0.046), // abajo centro
+    CraterSpot(0.289, 0.865, 0.146, 0.120), // abajo izquierda (el grande)
+  ];
+}
+
+/// Marcador que se dibuja **sobre** el cráter pintado del sprite.
+///
+/// No dibuja el cráter: el cráter ya está en la ilustración. Solo agrega
+/// el número, el candado o el visto, más la etiqueta de dificultad.
+class CraterMarker extends StatelessWidget {
   final int level;
   final CraterStatus status;
   final Dificultad dificultad;
-  final double size;
+
+  /// Radio del cráter pintado, en píxeles lógicos.
+  final Size craterSize;
+
   final VoidCallback? onTap;
 
-  const CraterNode({
+  const CraterMarker({
     super.key,
     required this.level,
     required this.status,
     required this.dificultad,
-    this.size = 132,
+    required this.craterSize,
     this.onTap,
   });
 
@@ -30,6 +54,8 @@ class CraterNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final badge = (craterSize.shortestSide * 0.85).clamp(30.0, 58.0);
+
     return Semantics(
       button: !_isLocked,
       label: _isLocked
@@ -37,164 +63,107 @@ class CraterNode extends StatelessWidget {
           : 'Cráter $level, dificultad ${dificultad.label}',
       child: GestureDetector(
         onTap: _isLocked ? null : onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildCrater(),
-            const SizedBox(height: 10),
-            Text(
-              'Cráter $level',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: _isLocked
-                    ? Colors.white.withValues(alpha: 0.35)
-                    : Colors.white,
+        behavior: HitTestBehavior.opaque,
+        // El SizedBox define el area tocable (el crater pintado); el
+        // contenido se centra y puede sobresalir sin desbordar el layout.
+        child: SizedBox(
+          width: craterSize.width,
+          height: craterSize.height,
+          child: Center(
+            child: OverflowBox(
+              minWidth: 0,
+              minHeight: 0,
+              maxWidth: double.infinity,
+              maxHeight: double.infinity,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildBadge(badge),
+                  if (!_isLocked) ...[
+                    const SizedBox(height: 3),
+                    _buildLabel(),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            _buildBadge(),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCrater() {
-    return SizedBox(
+  Widget _buildBadge(double size) {
+    return Container(
       width: size,
-      height: size * 0.78,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Borde elevado del cráter (la roca alrededor de la boca)
-          Container(
-            width: size,
-            height: size * 0.78,
-            decoration: BoxDecoration(
-              shape: BoxShape.rectangle,
-              borderRadius: BorderRadius.all(
-                Radius.elliptical(size / 2, size * 0.39),
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: _isLocked
-                    ? const [Color(0xFF5A5F6B), Color(0xFF3C414B)]
-                    : const [Color(0xFFF6E0A4), Color(0xFFD9A05B)],
-              ),
-              boxShadow: [
-                if (!_isLocked)
-                  BoxShadow(
-                    color: _glowColor.withValues(alpha: 0.45),
-                    blurRadius: 24,
-                    spreadRadius: 1,
-                  ),
-              ],
-            ),
-          ),
-
-          // Boca del cráter
-          Container(
-            width: size * 0.74,
-            height: size * 0.5,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.all(
-                Radius.elliptical(size * 0.37, size * 0.25),
-              ),
-              gradient: RadialGradient(
-                colors: _mouthColors,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: _buildMouthContent(),
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _badgeColor,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: _badgeColor.withValues(alpha: 0.6),
+            blurRadius: 14,
+            spreadRadius: 1,
           ),
         ],
       ),
+      alignment: Alignment.center,
+      child: _buildBadgeContent(size),
     );
   }
 
-  Widget _buildMouthContent() {
+  Widget _buildBadgeContent(double size) {
     switch (status) {
       case CraterStatus.locked:
-        return Icon(
-          Icons.lock_rounded,
-          color: Colors.white.withValues(alpha: 0.45),
-          size: size * 0.2,
-        );
+        return Icon(Icons.lock_rounded, color: Colors.white, size: size * 0.5);
       case CraterStatus.completed:
-        return Icon(
-          Icons.check_rounded,
-          color: Colors.white,
-          size: size * 0.26,
-        );
+        return Icon(Icons.check_rounded, color: Colors.white, size: size * 0.6);
       case CraterStatus.available:
         return Text(
           '$level',
           style: TextStyle(
-            fontSize: size * 0.26,
+            fontSize: size * 0.52,
             fontWeight: FontWeight.bold,
             color: Colors.white,
-            shadows: const [
-              Shadow(color: Colors.black54, blurRadius: 6),
-            ],
           ),
         );
     }
   }
 
-  Widget _buildBadge() {
-    if (_isLocked) {
-      return Text(
-        'Bloqueado',
-        style: TextStyle(
-          fontSize: 11,
-          color: Colors.white.withValues(alpha: 0.3),
-        ),
-      );
-    }
-
+  Widget _buildLabel() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: _difficultyColor.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _difficultyColor.withValues(alpha: 0.5)),
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '${dificultad.label} · ${dificultad.exerciseCount} ejercicios',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: _difficultyColor,
+        '${dificultad.label} · ${dificultad.exerciseCount}',
+        style: const TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
       ),
     );
   }
 
-  List<Color> get _mouthColors {
+  Color get _badgeColor {
     switch (status) {
-      case CraterStatus.completed:
-        return const [Color(0xFF4FC3C7), Color(0xFF2E7D7F)];
-      case CraterStatus.available:
-        return const [Color(0xFF8A4B20), Color(0xFF3E1F0C)];
       case CraterStatus.locked:
-        return const [Color(0xFF2A2E37), Color(0xFF14171D)];
-    }
-  }
-
-  Color get _glowColor => status == CraterStatus.completed
-      ? const Color(0xFF4FC3C7)
-      : AppTheme.goldAccent;
-
-  Color get _difficultyColor {
-    switch (dificultad) {
-      case Dificultad.facil:
-        return AppTheme.levelHigh;
-      case Dificultad.medio:
-        return AppTheme.goldAccent;
-      case Dificultad.dificil:
-        return const Color(0xFFFF8A65);
+        return const Color(0xFF4A5059);
+      case CraterStatus.completed:
+        return const Color(0xFF2E9E8F);
+      case CraterStatus.available:
+        switch (dificultad) {
+          case Dificultad.facil:
+            return AppTheme.levelHigh;
+          case Dificultad.medio:
+            return const Color(0xFFE09B2D);
+          case Dificultad.dificil:
+            return const Color(0xFFE2553C);
+        }
     }
   }
 }

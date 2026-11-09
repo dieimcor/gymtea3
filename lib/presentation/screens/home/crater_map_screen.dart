@@ -10,11 +10,18 @@ import 'package:gymtea3/presentation/screens/profile/profile_screen.dart';
 import 'package:gymtea3/presentation/widgets/crater_node.dart';
 import 'package:gymtea3/presentation/widgets/crater_preview_dialog.dart';
 
+/// Proporción del sprite del cometa (1080 × 982).
+const double _cometAspect = 1080 / 982;
+
+/// Cráteres pintados en cada sprite.
+const int _cratersPerComet = 4;
+
 /// Pantalla principal — mapa de cráteres.
 ///
-/// Reemplaza al antiguo Home con bottom navigation. Cada cráter es un
-/// nivel: se parte con el cráter 1 abierto y cada cráter completado abre
-/// el siguiente. Los cráteres 5-7 se revelan al superar los 4 primeros.
+/// El sprite del cometa **es** el menú: los cráteres pintados en la
+/// ilustración son los niveles. La imagen cambia de estado según cuántos
+/// se completaron (`crater_1` ninguno → `crater_4` tres turquesa) y encima
+/// solo va el marcador con el número, el candado o el visto.
 class CraterMapScreen extends StatefulWidget {
   const CraterMapScreen({super.key});
 
@@ -35,22 +42,22 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final exerciseProvider = context.watch<ExerciseProvider>();
+    final provider = context.watch<ExerciseProvider>();
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _buildBackground(),
+          _buildStarfield(),
           SafeArea(
             child: Column(
               children: [
-                _buildTopBar(context),
+                _buildTopBar(context, provider),
                 Expanded(
-                  child: exerciseProvider.isLoading
+                  child: provider.isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : _buildMap(exerciseProvider),
+                      : _buildMap(provider),
                 ),
               ],
             ),
@@ -60,20 +67,21 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
     );
   }
 
-  Widget _buildBackground() {
+  Widget _buildStarfield() {
     return Image.asset(
-      'assets/images/craters/fondo_espacio.png',
+      'assets/images/craters/fondo_estrellas.png',
       fit: BoxFit.cover,
+      repeat: ImageRepeat.repeatY,
       alignment: Alignment.topCenter,
       errorBuilder: (_, __, ___) => Container(color: AppTheme.backgroundDark),
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildTopBar(BuildContext context, ExerciseProvider provider) {
     final childName = context.watch<AuthProvider>().childName;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 12, 4),
+      padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
       child: Row(
         children: [
           Expanded(
@@ -83,15 +91,16 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
                 const Text(
                   'Mapa de Cráteres',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
                 Text(
-                  'Entrenamiento de $childName',
+                  '$childName · ${provider.completedLevels.length} de '
+                  '${provider.visibleCraterCount} conquistados',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
@@ -125,7 +134,7 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.black.withValues(alpha: 0.35),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -140,55 +149,73 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
   }
 
   Widget _buildMap(ExerciseProvider provider) {
-    final levels = provider.visibleLevels;
-    final allInitialDone =
-        provider.visibleCraterCount > AppConstants.initialCraterCount;
+    // Cada cometa lleva hasta 4 cráteres; con 7 niveles son dos cometas.
+    final zones = (provider.visibleCraterCount / _cratersPerComet).ceil();
 
-    return SingleChildScrollView(
-      reverse: true, // el cráter 1 queda abajo, como punto de partida
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-      child: Column(
-        children: [
-          if (!allInitialDone) _buildHint(),
-          const SizedBox(height: 16),
-          for (int i = levels.length - 1; i >= 0; i--) ...[
-            _buildCraterRow(provider, levels[i]),
-            if (i > 0) _buildTrail(provider, levels[i - 1]),
-          ],
-          const SizedBox(height: 8),
-          _buildSurface(),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // El cometa se escala para llenar buena parte del alto disponible.
+        // Puede salirse de ancho (se recorta por los costados), pero con un
+        // tope: pasado 1.30x, los crateres de los extremos quedarian fuera
+        // de pantalla.
+        const maxOverflow = 1.30;
+        var cometWidth = (constraints.maxHeight * 0.62) * _cometAspect;
+        cometWidth = cometWidth.clamp(
+          constraints.maxWidth,
+          constraints.maxWidth * maxOverflow,
+        );
+        final cometHeight = cometWidth / _cometAspect;
+
+        return SingleChildScrollView(
+          reverse: true, // el cometa del cráter 1 queda abajo
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (provider.visibleCraterCount ==
+                    AppConstants.initialCraterCount)
+                  _buildHint(),
+                for (int zone = zones - 1; zone >= 0; zone--)
+                  _buildComet(
+                    provider: provider,
+                    zone: zone,
+                    viewportWidth: constraints.maxWidth,
+                    width: cometWidth,
+                    height: cometHeight,
+                  ),
+                // aire para que el marcador mas bajo no quede pegado al borde
+                const SizedBox(height: 28),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildHint() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
+        color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.goldAccent.withValues(alpha: 0.25)),
+        border: Border.all(color: AppTheme.goldAccent.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Image.asset(
-            'assets/images/mascota/alien.png',
-            height: 36,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.auto_awesome_rounded,
-              color: AppTheme.goldAccent,
-            ),
-          ),
-          const SizedBox(width: 12),
+          const Icon(Icons.auto_awesome_rounded,
+              color: AppTheme.goldAccent, size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Completa los ${AppConstants.initialCraterCount} primeros '
-              'cráteres para descubrir el resto del planeta.',
+              'Conquista los ${AppConstants.initialCraterCount} cráteres '
+              'para descubrir un nuevo cometa.',
               style: TextStyle(
                 fontSize: 12,
-                height: 1.35,
-                color: Colors.white.withValues(alpha: 0.75),
+                height: 1.3,
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -197,69 +224,86 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
     );
   }
 
-  Widget _buildCraterRow(ExerciseProvider provider, int level) {
+  /// Un cometa con sus cráteres. El sprite cambia según cuántos de los
+  /// cráteres de **esta** zona ya se completaron.
+  Widget _buildComet({
+    required ExerciseProvider provider,
+    required int zone,
+    required double viewportWidth,
+    required double width,
+    required double height,
+  }) {
+    final firstLevel = zone * _cratersPerComet + 1;
+    final levels = <int>[
+      for (int i = 0; i < _cratersPerComet; i++)
+        if (firstLevel + i <= provider.visibleCraterCount) firstLevel + i,
+    ];
+
+    final doneInZone = levels.where(provider.isCompleted).length;
+    // crater_1 = ninguno turquesa … crater_4 = tres turquesa
+    final sprite = 'assets/images/craters/crater_${doneInZone.clamp(0, 3) + 1}.png';
+
+    return SizedBox(
+      width: viewportWidth,
+      height: height,
+      child: ClipRect(
+        child: OverflowBox(
+          minWidth: width,
+          maxWidth: width,
+          minHeight: height,
+          maxHeight: height,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  sprite,
+                  fit: BoxFit.fill,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              for (final level in levels)
+                _buildMarker(
+                  provider: provider,
+                  level: level,
+                  spot: CraterSpot.all[(level - firstLevel) % _cratersPerComet],
+                  width: width,
+                  height: height,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMarker({
+    required ExerciseProvider provider,
+    required int level,
+    required CraterSpot spot,
+    required double width,
+    required double height,
+  }) {
     final status = provider.isCompleted(level)
         ? CraterStatus.completed
         : provider.isUnlocked(level)
             ? CraterStatus.available
             : CraterStatus.locked;
 
-    final isLeft = level.isOdd;
+    final w = spot.rx * 2 * width;
+    final h = spot.ry * 2 * height;
 
-    return Align(
-      alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: isLeft ? 0 : 32,
-          right: isLeft ? 32 : 0,
-          top: 6,
-          bottom: 6,
-        ),
-        child: CraterNode(
-          level: level,
-          status: status,
-          dificultad: Dificultad.forLevel(level),
-          onTap: () => _openCrater(level),
-        ),
+    return Positioned(
+      left: spot.cx * width - w / 2,
+      top: spot.cy * height - h / 2,
+      width: w,
+      height: h,
+      child: CraterMarker(
+        level: level,
+        status: status,
+        dificultad: Dificultad.forLevel(level),
+        craterSize: Size(w, h),
+        onTap: () => _openCrater(level),
       ),
-    );
-  }
-
-  /// Huellas entre un cráter y el siguiente.
-  Widget _buildTrail(ExerciseProvider provider, int fromLevel) {
-    final walked = provider.isCompleted(fromLevel);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Column(
-        children: List.generate(3, (i) {
-          return Padding(
-            padding: EdgeInsets.only(
-              left: i.isEven ? 0 : 18,
-              top: 3,
-              bottom: 3,
-            ),
-            child: Container(
-              width: 10,
-              height: 6,
-              decoration: BoxDecoration(
-                color: walked
-                    ? AppTheme.goldAccent.withValues(alpha: 0.55)
-                    : Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  /// Superficie del planeta al pie del mapa.
-  Widget _buildSurface() {
-    return Image.asset(
-      'assets/images/craters/crater_base.png',
-      fit: BoxFit.fitWidth,
-      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
     );
   }
 
@@ -270,7 +314,8 @@ class _CraterMapScreenState extends State<CraterMapScreen> {
     _openingCrater = true;
 
     final provider = context.read<ExerciseProvider>();
-    final childId = context.read<AuthProvider>().currentChild?.id ?? 'mock-child';
+    final childId =
+        context.read<AuthProvider>().currentChild?.id ?? 'mock-child';
 
     try {
       await provider.buildRoutine(childId: childId, level: level);

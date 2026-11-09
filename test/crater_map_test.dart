@@ -130,17 +130,17 @@ void main() {
   });
 
   group('Render', () {
-    testWidgets('el mapa dibuja 4 cráteres: 1 disponible y 3 bloqueados',
+    testWidgets('el mapa marca 4 cráteres: 1 disponible y 3 bloqueados',
         (tester) async {
       await tester.runAsync(provider.loadMapState);
 
       await tester.pumpWidget(_wrap(
         provider,
         Scaffold(
-          body: ListView(
+          body: Row(
             children: [
               for (final level in provider.visibleLevels)
-                CraterNode(
+                CraterMarker(
                   level: level,
                   status: provider.isCompleted(level)
                       ? CraterStatus.completed
@@ -148,6 +148,7 @@ void main() {
                           ? CraterStatus.available
                           : CraterStatus.locked,
                   dificultad: Dificultad.forLevel(level),
+                  craterSize: const Size(80, 70),
                 ),
             ],
           ),
@@ -155,10 +156,20 @@ void main() {
       ));
       await tester.pump();
 
-      expect(find.byType(CraterNode), findsNWidgets(4));
-      expect(find.text('Cráter 1'), findsOneWidget);
-      expect(find.text('Bloqueado'), findsNWidgets(3));
+      expect(find.byType(CraterMarker), findsNWidgets(4));
+      // El disponible muestra su numero; los bloqueados, un candado.
+      expect(find.text('1'), findsOneWidget);
+      expect(find.byIcon(Icons.lock_rounded), findsNWidgets(3));
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('hay una posición de cráter por cada nivel del sprite',
+        (tester) async {
+      expect(CraterSpot.all.length, 4);
+      for (final spot in CraterSpot.all) {
+        expect(spot.cx, inInclusiveRange(0.0, 1.0));
+        expect(spot.cy, inInclusiveRange(0.0, 1.0));
+      }
     });
 
     testWidgets('el pop-up lista los ejercicios y los tiempos del nivel',
