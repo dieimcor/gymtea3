@@ -61,10 +61,11 @@ void main() {
   });
 
   group('Estado del mapa', () {
-    test('parte con el cráter 1 abierto y 4 visibles', () async {
+    test('parte con el cráter 1 abierto y la primera tanda visible', () async {
       await provider.loadMapState();
 
-      expect(provider.visibleCraterCount, AppConstants.initialCraterCount);
+      expect(provider.levelsInRound, [1, 2, 3, 4]);
+      expect(provider.firstLevelInRound, 1);
       expect(provider.highestUnlockedLevel, 1);
       expect(provider.isUnlocked(1), isTrue);
       expect(provider.isUnlocked(2), isFalse);
@@ -81,16 +82,49 @@ void main() {
       expect(provider.isUnlocked(3), isFalse);
     });
 
-    test('los cráteres 5-7 aparecen al superar los 4 primeros', () async {
+    test('al conquistar los 4, los cráteres se renumeran con los siguientes',
+        () async {
       await provider.loadMapState();
-      expect(provider.visibleCraterCount, 4);
+      expect(provider.levelsInRound, [1, 2, 3, 4]);
+      expect(provider.hasNextRound, isTrue);
 
       for (var level = 1; level <= 4; level++) {
         await provider.completeLevel(level);
       }
 
-      expect(provider.visibleCraterCount, AppConstants.totalCraterCount);
+      // Mismo cometa, numeros nuevos: no aparece una segunda pagina.
+      expect(provider.levelsInRound, [5, 6, 7, 8]);
+      expect(provider.firstLevelInRound, 5);
       expect(provider.highestUnlockedLevel, 5);
+      expect(provider.hasNextRound, isFalse);
+    });
+
+    test('la tanda nunca pasa del total de niveles', () async {
+      await provider.loadMapState();
+      for (var level = 1; level <= AppConstants.totalCraterCount; level++) {
+        await provider.completeLevel(level);
+      }
+
+      expect(provider.levelsInRound.last,
+          lessThanOrEqualTo(AppConstants.totalCraterCount));
+      expect(provider.levelsInRound.length,
+          lessThanOrEqualTo(AppConstants.initialCraterCount));
+    });
+
+    test('cada nivel de la tanda cae en un cráter distinto del sprite',
+        () async {
+      await provider.loadMapState();
+      for (var level = 1; level <= 4; level++) {
+        await provider.completeLevel(level);
+      }
+
+      final indices = provider.levelsInRound
+          .map((l) => l - provider.firstLevelInRound)
+          .toList();
+      expect(indices, [0, 1, 2, 3]);
+      for (final i in indices) {
+        expect(i, lessThan(CraterSpot.all.length));
+      }
     });
 
     test('el avance sobrevive a recrear el provider', () async {
@@ -140,7 +174,7 @@ void main() {
         Scaffold(
           body: Row(
             children: [
-              for (final level in provider.visibleLevels)
+              for (final level in provider.levelsInRound)
                 CraterMarker(
                   level: level,
                   status: provider.isCompleted(level)
@@ -214,6 +248,14 @@ void main() {
       expect(find.text('Dificultad Difícil'), findsOneWidget);
       expect(find.text('30s descanso'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Tandas', () {
+    test('el total de niveles es multiplo de los crateres del sprite', () {
+      expect(AppConstants.totalCraterCount % AppConstants.initialCraterCount,
+          0,
+          reason: 'Si no, la ultima tanda deja crateres sin nivel');
     });
   });
 

@@ -113,7 +113,7 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.trending_up_rounded,
                   label: 'Cráteres completados',
                   value: '${exerciseProvider.completedLevels.length}'
-                      ' / ${exerciseProvider.visibleCraterCount}',
+                      ' / ${exerciseProvider.totalCraters}',
                   valueColor: AppTheme.primaryGreen,
                 ),
                 _InfoRow(

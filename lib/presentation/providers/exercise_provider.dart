@@ -20,7 +20,6 @@ class ExerciseProvider extends ChangeNotifier {
 
   Set<int> _completedLevels = {};
   int _highestUnlockedLevel = AppConstants.minProgressionLevel;
-  int _visibleCraterCount = AppConstants.initialCraterCount;
   bool _isLoading = false;
   String? _error;
 
@@ -30,14 +29,31 @@ class ExerciseProvider extends ChangeNotifier {
   // Getters
   Set<int> get completedLevels => _completedLevels;
   int get highestUnlockedLevel => _highestUnlockedLevel;
-  int get visibleCraterCount => _visibleCraterCount;
+  /// Total de niveles del catalogo.
+  int get totalCraters => AppConstants.totalCraterCount;
+
+  /// Primer nivel de la tanda que se muestra en el cometa.
+  ///
+  /// El mapa siempre dibuja un solo cometa con sus 4 crateres: al
+  /// conquistar los 4, los crateres se renumeran con los siguientes
+  /// niveles en vez de aparecer un cometa nuevo.
+  int get firstLevelInRound =>
+      ((_highestUnlockedLevel - 1) ~/ AppConstants.initialCraterCount) *
+          AppConstants.initialCraterCount +
+      1;
+
+  /// Niveles que se ven ahora sobre el cometa.
+  List<int> get levelsInRound => [
+        for (var i = 0; i < AppConstants.initialCraterCount; i++)
+          if (firstLevelInRound + i <= totalCraters) firstLevelInRound + i,
+      ];
+
+  /// `true` si quedan niveles despues de la tanda actual.
+  bool get hasNextRound =>
+      levelsInRound.isNotEmpty && levelsInRound.last < totalCraters;
   bool get isLoading => _isLoading;
   String? get error => _error;
   RoutineModel? get previewRoutine => _previewRoutine;
-
-  /// Niveles visibles del mapa, de 1 a [visibleCraterCount].
-  List<int> get visibleLevels =>
-      List.generate(_visibleCraterCount, (i) => i + 1);
 
   bool isUnlocked(int level) => level <= _highestUnlockedLevel;
   bool isCompleted(int level) => _completedLevels.contains(level);
@@ -50,7 +66,6 @@ class ExerciseProvider extends ChangeNotifier {
     try {
       _completedLevels = await _levelProgress.getCompletedLevels();
       _highestUnlockedLevel = await _levelProgress.getHighestUnlockedLevel();
-      _visibleCraterCount = await _levelProgress.getVisibleCraterCount();
       _error = null;
     } catch (e) {
       _error = 'Error al cargar el mapa: $e';

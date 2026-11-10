@@ -30,12 +30,16 @@ class AppConstants {
   // Mapa de cráteres
   // ------------------------------------------------------------
 
-  /// Cráteres visibles al inicio. Los siguientes se revelan al
-  /// completar todos estos.
+  /// Cráteres pintados en el sprite del cometa, o sea los niveles que se
+  /// muestran por tanda. Al conquistarlos, los mismos cráteres se
+  /// renumeran con los siguientes.
   static const int initialCraterCount = 4;
 
   /// Total de cráteres del mapa (1 por nivel de progresión).
-  static const int totalCraterCount = 7;
+  ///
+  /// Multiplo de [initialCraterCount]: el cometa muestra 4 cráteres por
+  /// tanda, asi que con 8 niveles quedan dos tandas completas.
+  static const int totalCraterCount = 8;
 
   /// Nivel mínimo, siempre desbloqueado.
   static const int minProgressionLevel = 1;

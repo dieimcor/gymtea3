@@ -47,20 +47,6 @@ class LevelProgressService {
     return level;
   }
 
-  /// Cuántos cráteres mostrar en el mapa.
-  ///
-  /// Arranca en 4; los niveles 5-7 se revelan solo al superar esos cuatro.
-  Future<int> getVisibleCraterCount() async {
-    final completed = await getCompletedLevels();
-    final firstFourDone = List.generate(
-      AppConstants.initialCraterCount,
-      (i) => i + 1,
-    ).every(completed.contains);
-
-    return firstFourDone
-        ? AppConstants.totalCraterCount
-        : AppConstants.initialCraterCount;
-  }
 
   // ------------------------------------------------------------
   // Ejercicios ya sorteados (anti-repetición entre cráteres)

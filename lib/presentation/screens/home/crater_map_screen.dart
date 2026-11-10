@@ -30,8 +30,11 @@ String cometSpriteFor(int completed) {
 ///
 /// El sprite del cometa **es** el menú: los cráteres pintados en la
 /// ilustración son los niveles. La imagen cambia de estado según cuántos
-/// se completaron (`crater_1` ninguno → `crater_4` tres turquesa) y encima
+/// se completaron (`crater_1` ninguno → `crater_5` los cuatro) y encima
 /// solo va el marcador con el número, el candado o el visto.
+///
+/// Hay **un solo cometa**: al conquistar sus 4 cráteres, los marcadores se
+/// renumeran con los siguientes niveles y el cometa vuelve a empezar.
 class CraterMapScreen extends StatefulWidget {
   const CraterMapScreen({super.key});
 
@@ -123,7 +126,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                 ),
                 Text(
                   '$childName · ${provider.completedLevels.length} de '
-                  '${provider.visibleCraterCount} conquistados',
+                  '${provider.totalCraters} conquistados',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.6),
@@ -174,8 +177,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   }
 
   Widget _buildMap(ExerciseProvider provider) {
-    // Cada cometa lleva hasta 4 cráteres; con 7 niveles son dos cometas.
-    final zones = (provider.visibleCraterCount / cratersPerComet).ceil();
+    final levels = provider.levelsInRound;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -191,29 +193,21 @@ class _CraterMapScreenState extends State<CraterMapScreen>
         );
         final cometHeight = cometWidth / _cometAspect;
 
-        return SingleChildScrollView(
-          reverse: true, // el cometa del cráter 1 queda abajo
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (provider.visibleCraterCount ==
-                    AppConstants.initialCraterCount)
-                  _buildHint(),
-                for (int zone = zones - 1; zone >= 0; zone--)
-                  _buildComet(
-                    provider: provider,
-                    zone: zone,
-                    viewportWidth: constraints.maxWidth,
-                    width: cometWidth,
-                    height: cometHeight,
-                  ),
-                // aire para que el marcador mas bajo no quede pegado al borde
-                const SizedBox(height: 28),
-              ],
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (provider.hasNextRound) _buildHint(),
+            const Spacer(),
+            _buildComet(
+              provider: provider,
+              levels: levels,
+              viewportWidth: constraints.maxWidth,
+              width: cometWidth,
+              height: cometHeight,
             ),
-          ),
+            // aire para que el marcador mas bajo no quede pegado al borde
+            const SizedBox(height: 28),
+          ],
         );
       },
     );
@@ -249,21 +243,16 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     );
   }
 
-  /// Un cometa con sus cráteres. El sprite cambia según cuántos de los
-  /// cráteres de **esta** zona ya se completaron.
+  /// El cometa con los cráteres de la tanda actual. El sprite cambia
+  /// según cuántos de esos cráteres ya se conquistaron.
   Widget _buildComet({
     required ExerciseProvider provider,
-    required int zone,
+    required List<int> levels,
     required double viewportWidth,
     required double width,
     required double height,
   }) {
-    final firstLevel = zone * cratersPerComet + 1;
-    final levels = <int>[
-      for (int i = 0; i < cratersPerComet; i++)
-        if (firstLevel + i <= provider.visibleCraterCount) firstLevel + i,
-    ];
-
+    final firstLevel = provider.firstLevelInRound;
     final sprite = cometSpriteFor(levels.where(provider.isCompleted).length);
 
     // Aire sobre el cometa para los marcadores que flotan en el espacio
@@ -298,16 +287,15 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                 _buildMarker(
                   provider: provider,
                   level: level,
-                  spot: CraterSpot.all[(level - firstLevel) % cratersPerComet],
+                  spot: CraterSpot.all[level - firstLevel],
                   width: width,
                   height: height,
                   headroom: headroom,
                 ),
               if (levels.contains(provider.highestUnlockedLevel))
                 _buildAlien(
-                  spot: CraterSpot.all[
-                      (provider.highestUnlockedLevel - firstLevel) %
-                          cratersPerComet],
+                  spot: CraterSpot
+                      .all[provider.highestUnlockedLevel - firstLevel],
                   width: width,
                   height: height,
                   headroom: headroom,
