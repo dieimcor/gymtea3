@@ -1,6 +1,7 @@
 # NeuroGym — Estado de Progreso del MVP
 
-> **Última actualización:** 2026-05-08
+> **Última actualización:** 2026-11-09
+> **Handoff para retomar:** ver `HANDOFF.md`
 > **Referencia de diseño:** ver `CONTEXT.md` para especificaciones completas
 
 ---
@@ -11,9 +12,10 @@
 |------|--------|--------|-------|
 | **1** | Limpieza + Unificación Arquitectura | ✅ Completada | 2026-05-07 |
 | **2** | Auth RUT + Home + Perfil | ✅ Completada | 2026-05-07 |
-| **3** | Ejercicios del Manual + Sesión 3 Fases | ✅ Completada | 2026-05-08 |
-| **4** | Home Enriquecido + Minijuegos | ⬜ Pendiente | — |
-| **5** | Offline-First (SQLite) + Polish | ⬜ Pendiente | — |
+| **3** | Ejercicios del Manual + Sesión 3 Fases | ⚠️ Reemplazada por la Fase 4 | 2026-05-08 |
+| **4** | Mapa de Cráteres + Rutinas randomizadas | ✅ Completada | 2026-11-09 |
+| **5** | Minijuegos | ⬜ Pendiente | — |
+| **6** | Offline-First (SQLite) + Polish | ⬜ Pendiente | — |
 
 ---
 
@@ -100,16 +102,57 @@ Home → "Sesión del Día" → Mapa de Niveles (7 niveles visual)
 
 ---
 
-## Fase 4 — ⬜ Pendiente
+## Fase 4 — ✅ Completada (2026-11-09)
 
-- Enriquecer Home con widgets informativos (racha, sesiones del día)
-- Crear sección de minijuegos (Higiene, Orden, Autonomía, Alimentación)
-- Al menos 2-3 minijuegos funcionales tipo quiz
-- `data/repositories/minigame_repository.dart`
+Aplica `recursos/actualizacion24oct.txt`. **Reemplaza a la Fase 3**: se
+retiró la sesión de 3 fases y la configuración de tiempos.
+
+### Qué se hizo
+- **Mapa de cráteres como pantalla principal.** El sprite del cometa *es*
+  el menú: los cráteres pintados son los niveles. Se eliminó el Home con
+  bottom navigation y el mapa vertical de niveles.
+- **Un solo cometa, 4 cráteres por tanda.** Al conquistarlos, los mismos
+  cráteres se renumeran con los siguientes. Total: 8 niveles.
+- **El arte refleja el avance:** `crater_1` (ninguno conquistado) →
+  `crater_5` (los cuatro turquesa).
+- **Rutinas:** lista plana de 3/4/5 ejercicios × 2 series × 60 s, con
+  descansos incrementales de 20/25/30 s según dificultad.
+- **Sorteo sin repetición** entre cráteres, persistido en disco.
+- **Pop-up de nivel** (estilo Mario Party) con los ejercicios sorteados.
+- **"Califica tu progreso":** desempeño, cansancio y motivación, 1 a 5
+  estrellas, al terminar el cráter.
+- **Panel de progreso** en el mapa: cráteres conquistados, ejercicios,
+  tiempo y sesiones (persistidos).
+- **Perfilamiento y evaluación fuera de la UI.** El código queda en el
+  repo, sin uso, para retomarlo con el dashboard del psicopedagogo.
+
+### Archivos nuevos
+`difficulty.dart` · `routine_model.dart` · `level_progress_service.dart` ·
+`crater_map_screen.dart` · `rating_screen.dart` · `minigames_screen.dart` ·
+`crater_node.dart` · `crater_preview_dialog.dart` · `exercise_image.dart` ·
+`progress_panel.dart` · `test/routine_test.dart` · `test/crater_map_test.dart`
+
+### Eliminados
+`session_model.dart` · `home_screen.dart` · `level_map_screen.dart` ·
+`phase_indicator.dart` · `level_node.dart` · `exercise_card.dart` · enum
+`FaseSesion`
+
+### Estado
+`flutter analyze`: 4 info, 0 errores · `flutter test`: 25 casos en verde ·
+verificado en emulador (Pixel 9a).
 
 ---
 
 ## Fase 5 — ⬜ Pendiente
+
+- Minijuegos (Higiene, Orden, Autonomía, Alimentación)
+- Al menos 2-3 minijuegos funcionales tipo quiz
+- `data/repositories/minigame_repository.dart`
+- La pantalla `minigames_screen.dart` ya existe como placeholder
+
+---
+
+## Fase 6 — ⬜ Pendiente
 
 - SQLite con `database_helper.dart`, `exercise_local_ds.dart`, `progress_local_ds.dart`
 - Repositorios usan datasources locales como fuente primaria
@@ -121,61 +164,56 @@ Home → "Sesión del Día" → Mapa de Niveles (7 niveles visual)
 ## Estructura Actual de `lib/`
 
 ```
-lib/
-├── main.dart
-├── app.dart
-├── core/
-│   ├── constants/app_constants.dart
-│   ├── errors/exceptions.dart
-│   ├── network/api_client.dart
-│   └── theme/app_theme.dart
-├── data/
-│   ├── datasources/
-│   │   ├── local/exercise_local_ds.dart    (placeholder)
-│   │   └── remote/exercise_remote_ds.dart  (placeholder)
-│   ├── models/
-│   │   ├── child_model.dart
-│   │   ├── evaluation_model.dart
-│   │   ├── exercise_model.dart
-│   │   ├── progress_model.dart
-│   │   ├── session_model.dart
-│   │   └── user_model.dart
-│   ├── repositories/
-│   │   ├── auth_repository.dart
-│   │   ├── exercise_repository.dart  (77 ejercicios mock: 35 fort + 35 act + 7 juegos)
-│   │   ├── progress_repository.dart
-│   │   └── repositories.dart
-│   └── services/
-│       ├── auth_service.dart         (mock: RUT + "1234")
-│       └── storage_service.dart
-├── presentation/
-│   ├── providers/
-│   │   ├── auth_provider.dart
-│   │   ├── exercise_provider.dart    (+buildSession)
-│   │   └── progress_provider.dart    (+recordSessionProgress)
-│   ├── screens/
-│   │   ├── auth/login_screen.dart
-│   │   ├── exercises/
-│   │   │   ├── level_map_screen.dart          (Fase 3)
-│   │   │   └── exercise_session_screen.dart   (Fase 3)
-│   │   ├── home/home_screen.dart       (3 tabs, conectado a niveles)
-│   │   ├── profile/profile_screen.dart
-│   │   └── splash/splash_screen.dart
-│   └── widgets/
-│       ├── exercise_card.dart          (Fase 3)
-│       ├── fondo_app.dart
-│       ├── level_node.dart             (Fase 3)
-│       ├── phase_indicator.dart        (Fase 3)
-│       ├── rut_input_field.dart
-│       └── session_timer_widget.dart   (Fase 3)
-└── utils/
-    ├── formatters.dart
-    └── rut_validator.dart
+lib/app.dart
+lib/core/constants/app_constants.dart
+lib/core/errors/exceptions.dart
+lib/core/network/api_client.dart
+lib/core/theme/app_theme.dart
+lib/data/datasources/local/exercise_local_ds.dart
+lib/data/datasources/remote/exercise_remote_ds.dart
+lib/data/models/child_model.dart
+lib/data/models/difficulty.dart
+lib/data/models/evaluation_model.dart
+lib/data/models/exercise_model.dart
+lib/data/models/progress_model.dart
+lib/data/models/routine_model.dart
+lib/data/models/user_model.dart
+lib/data/repositories/auth_repository.dart
+lib/data/repositories/exercise_repository.dart
+lib/data/repositories/progress_repository.dart
+lib/data/repositories/repositories.dart
+lib/data/services/auth_service.dart
+lib/data/services/level_progress_service.dart
+lib/data/services/storage_service.dart
+lib/main.dart
+lib/presentation/providers/auth_provider.dart
+lib/presentation/providers/exercise_provider.dart
+lib/presentation/providers/progress_provider.dart
+lib/presentation/screens/auth/login_screen.dart
+lib/presentation/screens/exercises/exercise_session_screen.dart
+lib/presentation/screens/exercises/rating_screen.dart
+lib/presentation/screens/home/crater_map_screen.dart
+lib/presentation/screens/minigames/minigames_screen.dart
+lib/presentation/screens/profile/profile_screen.dart
+lib/presentation/screens/splash/splash_screen.dart
+lib/presentation/widgets/crater_node.dart
+lib/presentation/widgets/crater_preview_dialog.dart
+lib/presentation/widgets/exercise_image.dart
+lib/presentation/widgets/fondo_app.dart
+lib/presentation/widgets/progress_panel.dart
+lib/presentation/widgets/rut_input_field.dart
+lib/presentation/widgets/session_timer_widget.dart
+lib/utils/formatters.dart
+lib/utils/rut_validator.dart
+test/crater_map_test.dart
+test/routine_test.dart
 ```
 
 ## Notas Técnicas
 - **Package name:** `gymtea3` (en pubspec.yaml)
 - **Dart SDK:** `^3.5.0` (instalado: 3.9.2)
 - **Flutter analyze:** 4 info, 0 errores
+- **Tests:** 25 casos (`test/routine_test.dart`, `test/crater_map_test.dart`)
+- **Assets:** `recursos/` (material fuente, 271 MB) está en `.gitignore`
 - **Firebase:** Eliminado de dependencias activas, comentado en pubspec
 - **Legacy backup:** `screens_legacy_bak/` y `models_legacy_bak/` en raíz del proyecto (fuera de `lib/`)
