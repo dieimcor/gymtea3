@@ -196,8 +196,11 @@ duración estimada. Botones: **Sortear** y **¡Comenzar!**.
 
 Cada ejercicio tiene `imagenAsset`, por defecto
 `assets/images/ejercicios/<id>.png`. Si el PNG no existe, `ExerciseImage`
-muestra un **placeholder con el nombre** del ejercicio: basta dejar caer el
-archivo con ese nombre para que aparezca, sin tocar código.
+muestra un **placeholder con el nombre** del ejercicio.
+
+**Hoy todos los ejercicios van con placeholder**: las ilustraciones
+definitivas entran en una versión posterior. Para incorporarlas basta
+dejar el PNG con el id del ejercicio como nombre, sin tocar código.
 
 ### Califica tu progreso
 

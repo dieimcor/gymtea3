@@ -123,6 +123,8 @@ retiró la sesión de 3 fases y la configuración de tiempos.
   estrellas, al terminar el cráter.
 - **Panel de progreso** en el mapa: cráteres conquistados, ejercicios,
   tiempo y sesiones (persistidos).
+- **Imágenes de ejercicios:** todas placeholder por ahora; las
+  ilustraciones definitivas quedan para una versión posterior.
 - **Perfilamiento y evaluación fuera de la UI.** El código queda en el
   repo, sin uso, para retomarlo con el dashboard del psicopedagogo.
 

@@ -93,9 +93,12 @@ Eliminados: `session_model.dart`, `home_screen.dart`, `level_map_screen.dart`,
    5 ejercicios = 15, y el pool tiene 16. Si se agregan niveles difíciles
    hay que sumar ejercicios. El test `cada pool alcanza para todos sus
    cráteres sin repetir` avisa si no alcanza.
-2. **Imágenes de ejercicios.** Solo 12 tienen PNG; el resto muestra
-   placeholder con el nombre. Para agregar una, basta dejar el archivo en
-   `assets/images/ejercicios/<id>.png` — sin tocar código.
+2. **Imágenes de ejercicios: todas son placeholder.** Por decisión del
+   usuario, las ilustraciones definitivas entran en una versión
+   posterior. Para agregar una, basta dejar el archivo en
+   `assets/images/ejercicios/<id>.png` — sin tocar código ni pubspec.
+   Ver el README de esa carpeta. Hay un test que falla si algún ejercicio
+   apunta a una ruta propia en vez de la convención por id.
 3. **El panel cuenta ejercicios, no series ni repeticiones.** Si se
    prefiere otra métrica, se cambia qué acumula `addSession`.
 4. **`ProgressRepository` sigue siendo en memoria.** Las calificaciones
@@ -142,9 +145,9 @@ Hay un par de cosas que cuestan tiempo si no se saben:
 app usa ya está copiado y redimensionado en `assets/images/`:
 
 ```
-craters/   crater_1..5.png (estados del cometa) + fondo_estrellas.png
-mascota/   alien.png, alien_calificacion.png
-ejercicios/  12 ilustraciones de referencia
+craters/     crater_1..5.png (estados del cometa) + fondo_estrellas.png
+mascota/     alien.png, alien_calificacion.png
+ejercicios/  vacía (solo README) — todos los ejercicios van con placeholder
 ```
 
 `fondo_estrellas.png` es un recorte del cielo de `Ilustracion_Base1.png`;

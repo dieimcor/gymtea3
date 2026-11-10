@@ -76,15 +76,17 @@ class ExerciseRepository {
 
 // ============================================================
 // DATOS MOCK — Manual de Fuerza y Juegos (USAC, 2022)
-// + movimientos ilustrados del set de assets.
+// + movimientos de movilidad y juego.
 //
 // Cada ejercicio pertenece a un pool de dificultad:
-//   fácil   → cráteres 1-2 (3 ejercicios por rutina)
-//   medio   → cráteres 3-5 (4 ejercicios por rutina)
-//   difícil → cráteres 6-7 (5 ejercicios por rutina)
+//   fácil   → niveles 1-2 (3 ejercicios por rutina)
+//   medio   → niveles 3-5 (4 ejercicios por rutina)
+//   difícil → niveles 6-8 (5 ejercicios por rutina)
 //
-// `imagenAsset` apunta por defecto a assets/images/ejercicios/<id>.png.
-// Si el PNG no existe, la tarjeta muestra un placeholder con el nombre.
+// Ningun ejercicio tiene ilustracion todavia: todos muestran el
+// placeholder con su nombre. `imagenAsset` apunta por defecto a
+// assets/images/ejercicios/<id>.png, asi que para agregar el arte basta
+// dejar ahi el PNG con el id del ejercicio, sin tocar este archivo.
 // ============================================================
 
 final List<ExerciseModel> _mockExercises = [
@@ -177,7 +179,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.facil,
-    imagenAsset: 'assets/images/ejercicios/levantamiento_rodilla.png',
   ),
   ExerciseModel(
     id: 'brazos-extendidos',
@@ -187,7 +188,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.facil,
-    imagenAsset: 'assets/images/ejercicios/brazos_extendidos.png',
   ),
   ExerciseModel(
     id: 'paso-lateral',
@@ -197,7 +197,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.facil,
-    imagenAsset: 'assets/images/ejercicios/paso_lateral.png',
   ),
   ExerciseModel(
     id: 'trote-falso',
@@ -207,7 +206,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.facil,
-    imagenAsset: 'assets/images/ejercicios/trote_falso.png',
   ),
   ExerciseModel(
     id: 'rotaciones-corporales',
@@ -217,7 +215,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.facil,
-    imagenAsset: 'assets/images/ejercicios/rotaciones_corporales.png',
   ),
 
   // ============================================================
@@ -338,7 +335,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.medio,
-    imagenAsset: 'assets/images/ejercicios/rayuela.png',
   ),
   ExerciseModel(
     id: 'tocar-pies',
@@ -348,7 +344,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.medio,
-    imagenAsset: 'assets/images/ejercicios/tocar_pies.png',
   ),
   ExerciseModel(
     id: 'punos-cruzados',
@@ -358,7 +353,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.medio,
-    imagenAsset: 'assets/images/ejercicios/punos_cruzados.png',
   ),
   ExerciseModel(
     id: 'pierna-lateral',
@@ -368,7 +362,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.medio,
-    imagenAsset: 'assets/images/ejercicios/pierna_lateral.png',
   ),
   ExerciseModel(
     id: 'torsion-abdomen',
@@ -378,7 +371,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.medio,
-    imagenAsset: 'assets/images/ejercicios/torsion_abdomen.png',
   ),
 
   // ============================================================
@@ -515,7 +507,6 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.dificil,
-    imagenAsset: 'assets/images/ejercicios/salto_estrella.png',
   ),
   ExerciseModel(
     id: 'sentadilla-explosiva',
@@ -525,6 +516,5 @@ final List<ExerciseModel> _mockExercises = [
     categoria: 'MOV',
     categoriaNombre: 'Movilidad y Juego',
     dificultad: Dificultad.dificil,
-    imagenAsset: 'assets/images/ejercicios/sentadilla_explosiva.png',
   ),
 ];

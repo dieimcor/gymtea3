@@ -35,6 +35,30 @@ void main() {
     });
   });
 
+  group('Imágenes de ejercicios', () {
+    test('todos usan la ruta por defecto, derivada del id', () async {
+      // Por ahora no hay ilustraciones: ningun ejercicio debe apuntar a un
+      // archivo propio, asi todos caen en el placeholder con su nombre.
+      final todos = await ExerciseRepository().getAll();
+      expect(todos, isNotEmpty);
+
+      for (final e in todos) {
+        expect(e.imagenAsset, 'assets/images/ejercicios/${e.id}.png',
+            reason: '${e.id} tiene una ruta de imagen propia');
+      }
+    });
+
+    test('los ids sirven como nombre de archivo', () async {
+      final todos = await ExerciseRepository().getAll();
+      final valido = RegExp(r'^[a-z0-9-]+$');
+
+      for (final e in todos) {
+        expect(valido.hasMatch(e.id), isTrue,
+            reason: 'El id "${e.id}" no sirve como nombre de archivo');
+      }
+    });
+  });
+
   group('ExerciseRepository.pickRandom', () {
     late ExerciseRepository repo;
 
