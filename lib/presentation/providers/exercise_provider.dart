@@ -22,6 +22,7 @@ class ExerciseProvider extends ChangeNotifier {
   int _highestUnlockedLevel = AppConstants.minProgressionLevel;
   bool _isLoading = false;
   String? _error;
+  TrainingStats _stats = const TrainingStats();
 
   /// Rutina sorteada para el cráter que se está previsualizando.
   RoutineModel? _previewRoutine;
@@ -53,6 +54,13 @@ class ExerciseProvider extends ChangeNotifier {
       levelsInRound.isNotEmpty && levelsInRound.last < totalCraters;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// Acumulado de entrenamiento (persistido).
+  TrainingStats get stats => _stats;
+
+  /// Avance sobre el total de niveles, de 0 a 1.
+  double get overallProgress =>
+      totalCraters == 0 ? 0 : _completedLevels.length / totalCraters;
   RoutineModel? get previewRoutine => _previewRoutine;
 
   bool isUnlocked(int level) => level <= _highestUnlockedLevel;
@@ -66,6 +74,7 @@ class ExerciseProvider extends ChangeNotifier {
     try {
       _completedLevels = await _levelProgress.getCompletedLevels();
       _highestUnlockedLevel = await _levelProgress.getHighestUnlockedLevel();
+      _stats = await _levelProgress.getStats();
       _error = null;
     } catch (e) {
       _error = 'Error al cargar el mapa: $e';
@@ -142,9 +151,18 @@ class ExerciseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Marca un cráter como completado y recalcula el desbloqueo.
-  Future<void> completeLevel(int level) async {
+  /// Marca un cráter como completado, suma lo entrenado y recalcula el
+  /// desbloqueo.
+  Future<void> completeLevel(
+    int level, {
+    int exercisesDone = 0,
+    int elapsedSeconds = 0,
+  }) async {
     await _levelProgress.markLevelCompleted(level);
+    await _levelProgress.addSession(
+      exercises: exercisesDone,
+      seconds: elapsedSeconds,
+    );
     _previewRoutine = null;
     await loadMapState();
   }

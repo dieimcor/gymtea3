@@ -67,7 +67,11 @@ class _RatingScreenState extends State<RatingScreen> {
         );
 
     if (!mounted) return;
-    await context.read<ExerciseProvider>().completeLevel(args.routine.nivel);
+    await context.read<ExerciseProvider>().completeLevel(
+          args.routine.nivel,
+          exercisesDone: args.completedExerciseIds.length,
+          elapsedSeconds: args.elapsedSeconds,
+        );
 
     if (!mounted) return;
     setState(() {

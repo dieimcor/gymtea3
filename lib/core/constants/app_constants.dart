@@ -66,4 +66,9 @@ class AppConstants {
 
   /// Ids de ejercicios ya sorteados en la ronda actual (CSV).
   static const String usedExerciseIdsKey = 'used_exercise_ids';
+
+  // Acumulados de entrenamiento (sobreviven al reinicio de la app).
+  static const String totalExercisesKey = 'total_exercises';
+  static const String totalSecondsKey = 'total_seconds';
+  static const String totalSessionsKey = 'total_sessions';
 }

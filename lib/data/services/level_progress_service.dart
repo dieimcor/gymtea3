@@ -79,10 +79,54 @@ class LevelProgressService {
     await store.remove(AppConstants.usedExerciseIdsKey);
   }
 
+  // ------------------------------------------------------------
+  // Acumulados de entrenamiento
+  // ------------------------------------------------------------
+
+  /// Suma lo hecho en una rutina terminada.
+  Future<void> addSession({
+    required int exercises,
+    required int seconds,
+  }) async {
+    final store = await _store;
+    final stats = await getStats();
+    await store.setInt(
+        AppConstants.totalExercisesKey, stats.exercises + exercises);
+    await store.setInt(AppConstants.totalSecondsKey, stats.seconds + seconds);
+    await store.setInt(AppConstants.totalSessionsKey, stats.sessions + 1);
+  }
+
+  Future<TrainingStats> getStats() async {
+    final store = await _store;
+    return TrainingStats(
+      exercises: store.getInt(AppConstants.totalExercisesKey) ?? 0,
+      seconds: store.getInt(AppConstants.totalSecondsKey) ?? 0,
+      sessions: store.getInt(AppConstants.totalSessionsKey) ?? 0,
+    );
+  }
+
   /// Borra todo el avance del mapa.
   Future<void> resetAll() async {
     final store = await _store;
     await store.remove(AppConstants.completedLevelsKey);
     await store.remove(AppConstants.usedExerciseIdsKey);
+    await store.remove(AppConstants.totalExercisesKey);
+    await store.remove(AppConstants.totalSecondsKey);
+    await store.remove(AppConstants.totalSessionsKey);
   }
+}
+
+/// Acumulado de entrenamiento que se muestra en el mapa.
+class TrainingStats {
+  final int exercises;
+  final int seconds;
+  final int sessions;
+
+  const TrainingStats({
+    this.exercises = 0,
+    this.seconds = 0,
+    this.sessions = 0,
+  });
+
+  int get minutes => seconds ~/ 60;
 }

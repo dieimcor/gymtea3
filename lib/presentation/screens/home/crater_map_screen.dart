@@ -9,12 +9,17 @@ import 'package:gymtea3/presentation/providers/exercise_provider.dart';
 import 'package:gymtea3/presentation/screens/profile/profile_screen.dart';
 import 'package:gymtea3/presentation/widgets/crater_node.dart';
 import 'package:gymtea3/presentation/widgets/crater_preview_dialog.dart';
+import 'package:gymtea3/presentation/widgets/progress_panel.dart';
 
 /// Proporción del sprite del cometa (1080 × 982).
 const double _cometAspect = 1080 / 982;
 
 /// Cráteres pintados en cada sprite.
 const int cratersPerComet = 4;
+
+/// Cuánto puede salirse el cometa del ancho de pantalla. Pasado esto, los
+/// cráteres de los extremos quedarían fuera.
+const double _maxCometOverflow = 1.30;
 
 /// Sprite del cometa según cuántos de sus cráteres se conquistaron.
 ///
@@ -125,8 +130,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                   ),
                 ),
                 Text(
-                  '$childName · ${provider.completedLevels.length} de '
-                  '${provider.totalCraters} conquistados',
+                  'Entrenamiento de $childName',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.6),
@@ -179,37 +183,63 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   Widget _buildMap(ExerciseProvider provider) {
     final levels = provider.levelsInRound;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // El cometa se escala para llenar buena parte del alto disponible.
-        // Puede salirse de ancho (se recorta por los costados), pero con un
-        // tope: pasado 1.30x, los crateres de los extremos quedarian fuera
-        // de pantalla.
-        const maxOverflow = 1.30;
-        var cometWidth = (constraints.maxHeight * 0.62) * _cometAspect;
-        cometWidth = cometWidth.clamp(
-          constraints.maxWidth,
-          constraints.maxWidth * maxOverflow,
-        );
-        final cometHeight = cometWidth / _cometAspect;
+    return Column(
+      children: [
+        const SizedBox(height: 4),
+        ProgressPanel(
+          completed: provider.completedLevels.length,
+          total: provider.totalCraters,
+          stats: provider.stats,
+        ),
+        if (provider.hasNextRound) ...[
+          const SizedBox(height: 10),
+          _buildHint(),
+        ],
+        // El cometa se queda con el espacio que sobre, nunca mas.
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const headroom = 96.0;
+              const bottomAir = 20.0;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            if (provider.hasNextRound) _buildHint(),
-            const Spacer(),
-            _buildComet(
-              provider: provider,
-              levels: levels,
-              viewportWidth: constraints.maxWidth,
-              width: cometWidth,
-              height: cometHeight,
-            ),
-            // aire para que el marcador mas bajo no quede pegado al borde
-            const SizedBox(height: 28),
-          ],
-        );
-      },
+              final available = constraints.maxHeight - headroom - bottomAir;
+
+              var cometWidth =
+                  (constraints.maxWidth * _maxCometOverflow).clamp(
+                constraints.maxWidth,
+                constraints.maxWidth * _maxCometOverflow,
+              );
+              var cometHeight = cometWidth / _cometAspect;
+
+              // Si no cabe a lo alto, mandamos el alto y recalculamos ancho,
+              // sin bajar del ancho de pantalla.
+              if (cometHeight > available) {
+                cometHeight = available;
+                cometWidth = cometHeight * _cometAspect;
+                if (cometWidth < constraints.maxWidth) {
+                  cometWidth = constraints.maxWidth;
+                  cometHeight = cometWidth / _cometAspect;
+                }
+              }
+
+              return Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: bottomAir),
+                  child: _buildComet(
+                    provider: provider,
+                    levels: levels,
+                    viewportWidth: constraints.maxWidth,
+                    width: cometWidth,
+                    height: cometHeight,
+                    headroom: headroom,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -229,8 +259,8 @@ class _CraterMapScreenState extends State<CraterMapScreen>
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Conquista los ${AppConstants.initialCraterCount} cráteres '
-              'para descubrir un nuevo cometa.',
+              'Conquista estos ${AppConstants.initialCraterCount} cráteres '
+              'y aparecerán los siguientes.',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.3,
@@ -251,13 +281,11 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     required double viewportWidth,
     required double width,
     required double height,
+    required double headroom,
   }) {
     final firstLevel = provider.firstLevelInRound;
     final sprite = cometSpriteFor(levels.where(provider.isCompleted).length);
 
-    // Aire sobre el cometa para los marcadores que flotan en el espacio
-    // (el de la cima) y para el marciano.
-    const headroom = 96.0;
     final totalHeight = height + headroom;
 
     return SizedBox(
@@ -296,6 +324,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                 _buildAlien(
                   spot: CraterSpot
                       .all[provider.highestUnlockedLevel - firstLevel],
+                  viewportWidth: viewportWidth,
                   width: width,
                   height: height,
                   headroom: headroom,
@@ -311,20 +340,25 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   /// conquistar un crater se desplaza al siguiente.
   Widget _buildAlien({
     required CraterSpot spot,
+    required double viewportWidth,
     required double width,
     required double height,
     required double headroom,
   }) {
     const size = 72.0;
 
-    // Se para al costado del crater, un poco mas arriba. El clamp evita
-    // que se corte contra los bordes de la zona (el crater de la cima
-    // tiene cy negativa).
+    // El cometa es mas ancho que la pantalla y va centrado, asi que los
+    // limites utiles son los de la franja visible, no los del cometa.
+    final offset = (width - viewportWidth) / 2;
+    final minLeft = offset + 4;
+    final maxLeft = offset + viewportWidth - size - 4;
+
+    // Se para al costado del crater, un poco mas arriba.
     var left = spot.cx * width + spot.rx * width * 0.9;
-    if (left + size > width) {
+    if (left > maxLeft) {
       left = spot.cx * width - spot.rx * width * 0.9 - size;
     }
-    left = left.clamp(4.0, width - size - 4);
+    left = left.clamp(minLeft, maxLeft);
 
     final top = (headroom + spot.cy * height - size * 1.15)
         .clamp(10.0, headroom + height - size);
