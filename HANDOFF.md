@@ -54,7 +54,18 @@ quedó a medio ajustar (ver punto 1).
   gira y vuelve es el cometa completo. La entrada tras el viaje/giro llega
   "desde cerca" (escala 1.12 → 1). **Falta mirarlo en el emulador.**
 
-**PRÓXIMA SESIÓN — primero esto (pedido 2026-11-26):**
+**Hecho (2026-11-26, sesión siguiente) — marciano por encima de todo:**
+el cometa solo guarda un ancla (`CompositedTransformTarget` en
+`_buildAlien`); el marciano se dibuja en la capa superior del `Stack`
+(`_buildAlienOverlay`, `CompositedTransformFollower` + `IgnorePointer`),
+encima del panel, el aviso y los marcadores y debajo del viaje/giro (se
+oculta mientras ocurren). Hereda vaivén y zoom del cometa y el fundido de
+entrada. El "acercarse" ahora sube y crece más (escala 1.9, sube 34 px).
+Test nuevo en `crater_map_test.dart`. 127/127 tests, analyze limpio.
+**Falta que el usuario lo mire en el emulador** (se reinstaló: hay que
+volver a entrar).
+
+**~~PRÓXIMA SESIÓN — primero esto~~ (hecho, ver arriba):**
 - **El marciano debe sobreponerse a todo.** Hoy vive dentro del
   `ClipRect`/`OverflowBox` del cometa (`_buildAlien` en
   `crater_map_screen.dart`), así que queda **debajo** del panel de

@@ -202,6 +202,10 @@ class _CraterMapScreenState extends State<CraterMapScreen>
 
   Timer? _syncTimer;
 
+  /// Une el lugar del marciano dentro del cometa con su dibujo en la capa
+  /// superior de la pantalla (ver [_buildAlienOverlay]).
+  final LayerLink _alienLink = LayerLink();
+
   @override
   void initState() {
     super.initState();
@@ -388,6 +392,10 @@ class _CraterMapScreenState extends State<CraterMapScreen>
               ),
             ),
           ),
+          // El marciano va por encima de todo el tablero (panel, aviso y
+          // marcadores) y solo queda debajo del viaje.
+          if (view != null && travel == null && !_turning)
+            _buildAlienOverlay(),
           if (travel != null)
             Positioned.fill(
               child: CometTravel(
@@ -799,8 +807,14 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     );
   }
 
-  /// El marciano acompana al crater actual y flota suavemente. Al
-  /// conquistar un crater se desplaza al siguiente.
+  /// Tamaño del marciano en el tablero.
+  static const double _alienSize = 72.0;
+
+  /// Ancla del marciano dentro del cometa: acompaña al cráter actual y se
+  /// desplaza al siguiente al conquistarlo. No dibuja nada; el marciano se
+  /// pinta en la capa superior ([_buildAlienOverlay]) siguiendo esta ancla,
+  /// así hereda el vaivén y el zoom del cometa sin quedar recortado ni
+  /// debajo del panel.
   Widget _buildAlien({
     required CraterSpot spot,
     required double viewportWidth,
@@ -808,7 +822,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     required double height,
     required double headroom,
   }) {
-    const size = 72.0;
+    const size = _alienSize;
 
     // El cometa es mas ancho que la pantalla y va centrado, asi que los
     // limites utiles son los de la franja visible, no los del cometa.
@@ -833,22 +847,51 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       top: top,
       width: size,
       height: size,
-      child: AnimatedBuilder(
-        animation: _alienController,
-        builder: (context, child) {
-          final m = alienMotion(_alienController.value);
-          return Transform.translate(
-            offset: m.offset,
-            child: Transform.rotate(
-              angle: m.angle,
-              child: Transform.scale(scale: m.scale, child: child),
+      child: CompositedTransformTarget(
+        link: _alienLink,
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+
+  /// El marciano dibujado sobre todo el tablero, pegado a su ancla en el
+  /// cometa. No recibe toques: los cráteres de abajo siguen respondiendo.
+  Widget _buildAlienOverlay() {
+    final fade = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0, 0.5, curve: Curves.easeOut),
+    );
+    return Positioned(
+      left: 0,
+      top: 0,
+      width: _alienSize,
+      height: _alienSize,
+      child: IgnorePointer(
+        child: CompositedTransformFollower(
+          link: _alienLink,
+          showWhenUnlinked: false,
+          child: FadeTransition(
+            opacity: fade,
+            child: AnimatedBuilder(
+              animation: _alienController,
+              builder: (context, child) {
+                final m = alienMotion(_alienController.value);
+                return Transform.translate(
+                  offset: m.offset,
+                  child: Transform.rotate(
+                    angle: m.angle,
+                    child: Transform.scale(scale: m.scale, child: child),
+                  ),
+                );
+              },
+              child: Image.asset(
+                'assets/images/mascota/alien.png',
+                key: const ValueKey('map-alien'),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
             ),
-          );
-        },
-        child: Image.asset(
-          'assets/images/mascota/alien.png',
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
         ),
       ),
     );
@@ -974,8 +1017,10 @@ AlienPose alienMotion(double t) {
   final hop = win(0.78, 0.86);
 
   return (
-    offset: Offset(-18 * closer, bob - 40 * hop + 26 * closer),
+    // Al acercarse sube y crece: pasa por encima del panel, como si
+    // flotara hacia quien mira.
+    offset: Offset(-22 * closer, bob - 40 * hop - 34 * closer),
     angle: sway + spin * math.pi * 2,
-    scale: 1 + 0.55 * closer,
+    scale: 1 + 0.9 * closer,
   );
 }

@@ -642,6 +642,29 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('el marciano va en la capa de arriba, sobre el panel',
+        (tester) async {
+      await tester.runAsync(() => completeUpTo(1));
+      await mountMap(tester);
+
+      final alien = find.byKey(const ValueKey('map-alien'));
+      expect(alien, findsOneWidget);
+      // Sigue a su ancla en el cometa, pero no vive dentro del recorte.
+      expect(
+          find.ancestor(
+              of: alien, matching: find.byType(CompositedTransformFollower)),
+          findsOneWidget);
+      expect(find.ancestor(of: alien, matching: find.byType(ClipRect)),
+          findsNothing);
+      expect(find.ancestor(of: alien, matching: find.byType(IgnorePointer)),
+          findsWidgets);
+      // Se dibuja después (encima) del panel de progreso.
+      final order = tester.allElements.map((e) => e.widget).toList();
+      expect(order.indexWhere((w) => w.key == const ValueKey('map-alien')),
+          greaterThan(order.indexWhere((w) => w is ProgressPanel)));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('en la primera carga no hay viaje aunque sea otro cometa',
         (tester) async {
       await tester.runAsync(() => completeUpTo(8));
