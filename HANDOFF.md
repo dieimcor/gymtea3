@@ -47,7 +47,8 @@ quedó a medio ajustar (ver punto 1).
   halo de atmósfera (todo con colores fijos).
 
 **Pendientes:**
-1. Sprites de **pisadas** que avanzan (tarea anotada abajo).
+1. ~~Sprites de pisadas~~ — descartado: el usuario verificó que el avance
+   de pisadas ya funciona con los sprites `crater_1..5` (2026-11-26).
 3. Opcional: franja oscura bajo el cometa (`bottomAir` = 20 px).
 
 **Lienzo de diseño (claude.ai, privado):**
@@ -102,7 +103,7 @@ flutter test      → 120 casos, todos en verde (9 archivos en test/)
    `assets/images/craters/cometa_completo.png` (sin recortes), con un
    "giro" o desplazamiento al terminar cada cráter (ilusión de caminar
    sobre el cometa).
-2. **Después de (1):** incorporar los sprites con **pisadas que avanzan**
+2. ~~Pisadas que avanzan~~ (descartado, ya funciona). Nota original:
    (`crater_1..5.png`, y los `crater X_Y.png` de `recursos/Asset app/`)
    para reforzar la sensación de progreso; definir cómo calzan con el
    cometa completo y el giro.
