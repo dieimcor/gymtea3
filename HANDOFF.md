@@ -1,21 +1,44 @@
 # Handoff — Mapa de Cráteres
 
-> **Fecha:** 2026-11-26 · **Rama:** `main` · **Último commit:** `c845522` (las tandas
-> de 2026-11-25 y 2026-11-26 están en el árbol de trabajo, **sin commit**)
-> **Estado:** Fase 4.1 (animaciones, recompensa, viaje) y Fase 4.2 (rutas de
-> entrenamiento) terminadas y verificadas con tests y en emulador. Fases 5 y 6 en pausa.
+> **Fecha:** 2026-11-26 · **Rama:** `main` · todo subido a `origin`
+> **Estado:** Fase 4 terminada + revisión de UX completa (3 tandas),
+> sesión "solo lo esencial", modo calma y gracias del marciano. Fases 5 y 6
+> en pausa.
 
 Este documento es para retomar el trabajo. La especificación completa
 está en `CONTEXT.md` (sección 5) y el historial por fases en `PROGRESS.md`.
 
 ---
 
-## ⏩ RETOMAR AQUÍ (2026-11-26, sesión cortada por contexto)
+## ⏩ RETOMAR AQUÍ (2026-11-26, fin de sesión)
 
-**Estado del árbol:** todo en `main` y subido a `origin` (commit
-`6e83a99` y siguientes). `flutter analyze`
-limpio (4 info preexistentes). `flutter test`: 124/125 — falla 1 test que
-quedó a medio ajustar (ver punto 1).
+**Estado del árbol:** limpio, en `main` y subido a `origin`.
+`flutter analyze`: 4 info preexistentes. `flutter test`: 142 en verde.
+El usuario está probando el APK release (`--split-per-abi`, en el
+Escritorio, carpeta `NeuroGym-APK`) en su celular.
+
+**Próxima sesión — primero:** recoger lo que el usuario anote al probar
+en su celular.
+
+**Pendientes de la revisión de UX** (`docs/revision-ux-2026-11-26.md`,
+solo local porque `docs/` está en `.gitignore`): #12 "Fácil · 4" sin
+unidad, #26 elegir la misma ruta repite el despegue, #27 parámetros de
+ruta sin usar en `ProgressPanel`, #29 mensaje del giro de cara muy breve,
+#30 títulos de Perfil ("Información Personal", "(MVP)"), #31 confeti en
+cada toque al marciano de la recompensa, #32 recurso del ejercicio vacío
+(esperando las gráficas).
+
+**Ideas abiertas:** sonidos suaves con interruptor (hoy la app no tiene
+audio, solo vibración en la recompensa).
+
+**Detalle de lo hecho en esta sesión:** ver las notas fechadas
+2026-11-26 más abajo (marciano por encima de todo, 6 arreglos altos,
+tandas 1–3, propuesta B de la sesión, modo calma, gracias del marciano,
+revisión de errores).
+
+---
+
+## Historial previo (2026-11-26, antes de la revisión de UX)
 
 **Lo último que se hizo (sin verificar en emulador):**
 - Panel de progreso sin cuadro grande: una línea con chip del cometa +
