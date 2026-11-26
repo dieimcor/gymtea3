@@ -12,7 +12,8 @@ está en `CONTEXT.md` (sección 5) y el historial por fases en `PROGRESS.md`.
 
 ## ⏩ RETOMAR AQUÍ (2026-11-26, sesión cortada por contexto)
 
-**Estado del árbol:** todo sin commit desde `c845522`. `flutter analyze`
+**Estado del árbol:** commiteado en la rama `feat/rutas-y-mapa-vivo`
+(commit `6e83a99`, sobre `c845522` de `main`; falta mergear a `main`). `flutter analyze`
 limpio (4 info preexistentes). `flutter test`: 124/125 — falla 1 test que
 quedó a medio ajustar (ver punto 1).
 
@@ -47,7 +48,7 @@ quedó a medio ajustar (ver punto 1).
 
 **Pendientes:**
 1. Sprites de **pisadas** que avanzan (tarea anotada abajo).
-2. Commit de toda la tanda (preguntar al usuario).
+2. Mergear `feat/rutas-y-mapa-vivo` a `main` cuando el usuario lo apruebe.
 3. Opcional: franja oscura bajo el cometa (`bottomAir` = 20 px).
 
 **Lienzo de diseño (claude.ai, privado):**
