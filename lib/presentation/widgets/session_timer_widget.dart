@@ -34,11 +34,17 @@ class SessionTimerWidget extends StatefulWidget {
   /// La serie está en su preparación (la insignia se oculta).
   final bool preparing;
 
-  /// Insignia chica para la esquina del recurso del ejercicio.
+  /// Insignia redonda bajo el recurso del ejercicio (serie).
   final bool compact;
 
+  /// Lo que va dentro del anillo grande del descanso (el marciano).
+  final Widget? center;
+
   /// Lado de la insignia en modo [compact].
-  static const double compactSize = 72;
+  static const double compactSize = 88;
+
+  /// Lado del anillo grande del descanso.
+  static const double restRingSize = 250;
 
   const SessionTimerWidget({
     super.key,
@@ -49,6 +55,7 @@ class SessionTimerWidget extends StatefulWidget {
     this.autoStart = false,
     this.preparing = false,
     this.compact = false,
+    this.center,
   });
 
   @override
@@ -146,7 +153,7 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
   Curve get _popCurve => _reduceMotion ? Curves.easeOut : Curves.elasticOut;
 
   Color get _color {
-    if (widget.isRest) return AppTheme.accentTeal;
+    if (widget.isRest) return AppTheme.restTeal;
     if (_hurry) return AppTheme.goldAccent;
     return AppTheme.primaryGreen;
   }
@@ -160,11 +167,14 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
   Widget build(BuildContext context) {
     if (widget.compact) return _buildBadge();
 
+    // Descanso: anillo grande que se vacía con el marciano adentro y, bajo
+    // él, el único número de la pantalla.
+    const ring = SessionTimerWidget.restRingSize;
     return Column(
       children: [
         SizedBox(
-          width: 190,
-          height: 190,
+          width: ring,
+          height: ring,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -176,39 +186,45 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
                   tween: ColorTween(end: _color),
                   duration: const Duration(milliseconds: 400),
                   builder: (context, color, _) => CustomPaint(
-                    size: const Size(190, 190),
+                    size: const Size(ring, ring),
                     painter: _RingPainter(
                       progress: value,
                       color: color ?? _color,
+                      trackColor: _color.withValues(alpha: 0.16),
                     ),
                   ),
                 ),
               ),
-              _buildCountdown(),
+              if (widget.center != null) widget.center!,
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
+        Semantics(
+          label: '$_remainingSeconds segundos',
+          child: ExcludeSemantics(
+            child: Text(
+              '$_remainingSeconds',
+              key: const ValueKey('rest-seconds'),
+              style: AppTheme.numbers(size: 30),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 350),
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
-            child: SlideTransition(
-              position: Tween(
-                begin: const Offset(0, 0.3),
-                end: Offset.zero,
-              ).animate(anim),
-              child: child,
-            ),
+            child: child,
           ),
           child: Text(
             widget.label,
             key: ValueKey(widget.label),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.4,
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
         ),
@@ -216,46 +232,7 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
     );
   }
 
-  Widget _buildCountdown() {
-    return Column(
-      key: const ValueKey('countdown'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedScale(
-          scale: _hurryScale(1.15),
-          duration: const Duration(milliseconds: 400),
-          curve: _popCurve,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            transitionBuilder: (child, anim) => ScaleTransition(
-              scale: Tween(begin: 0.6, end: 1.0).animate(
-                CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
-              ),
-              child: FadeTransition(opacity: anim, child: child),
-            ),
-            child: Text(
-              '$_remainingSeconds',
-              key: ValueKey(_remainingSeconds),
-              style: TextStyle(
-                fontSize: 56,
-                fontWeight: FontWeight.bold,
-                color: _color,
-              ),
-            ),
-          ),
-        ),
-        Text(
-          'segundos',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.5),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Insignia de la esquina: anillo chico + número. Aparece con un "pop"
+  /// Insignia bajo el recurso: anillo + número. Aparece con un "pop"
   /// cuando termina la preparación y arranca la serie.
   Widget _buildBadge() {
     const size = SessionTimerWidget.compactSize;
@@ -272,7 +249,7 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppTheme.backgroundDark.withValues(alpha: 0.88),
+            color: AppTheme.backgroundDark,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.35),
@@ -294,8 +271,9 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
                     painter: _RingPainter(
                       progress: value,
                       color: color ?? _color,
-                      strokeWidth: 6,
-                      inset: 5,
+                      trackColor: (color ?? _color).withValues(alpha: 0.18),
+                      strokeWidth: 7,
+                      inset: 6,
                     ),
                   ),
                 ),
@@ -306,9 +284,8 @@ class SessionTimerWidgetState extends State<SessionTimerWidget> {
                 curve: _popCurve,
                 child: Text(
                   '$_remainingSeconds',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
+                  style: AppTheme.numbers(
+                    size: 30,
                     color:
                         _color == AppTheme.primaryGreen ? Colors.white : _color,
                   ),
@@ -327,10 +304,12 @@ class _RingPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
   final double inset;
+  final Color? trackColor;
 
   _RingPainter({
     required this.progress,
     required this.color,
+    this.trackColor,
     this.strokeWidth = 12,
     this.inset = 10,
   });
@@ -341,7 +320,7 @@ class _RingPainter extends CustomPainter {
     final radius = size.width / 2 - inset;
 
     final track = Paint()
-      ..color = Colors.white.withValues(alpha: 0.08)
+      ..color = trackColor ?? Colors.white.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 

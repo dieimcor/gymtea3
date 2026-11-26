@@ -35,6 +35,12 @@ class ExerciseSessionScreen extends StatefulWidget {
   /// Portada inicial ("¡A entrenar juntos!").
   static const introKey = Key('session_intro');
 
+  /// Tramos de avance del cráter (uno por ejercicio).
+  static const segmentsKey = Key('session_segments');
+
+  /// Título "Descansen" del descanso.
+  static const restTitleKey = Key('session_rest_title');
+
   /// Entrada y salida de la portada (normal y con animaciones reducidas).
   /// La portada no avanza sola: espera el toque del padre, así la sesión
   /// no parte con el niño todavía lejos.
@@ -433,13 +439,11 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text(
-            'Cráter ${routine.nivel} · ${routine.dificultad.label}',
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          // Solo lo esencial: el avance del cráter son tramos, sin números.
+          titleSpacing: 0,
+          title: Padding(
+            padding: const EdgeInsets.only(right: 56),
+            child: _buildExerciseSegments(routine, step),
           ),
           leading: IconButton(
             icon: const Icon(Icons.close_rounded, color: Colors.white),
@@ -451,15 +455,12 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
             children: [
               Column(
                 children: [
-                  _buildProgressBar(routine, step),
                   const SizedBox(height: 8),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         children: [
-                          _buildStepHeader(step),
-                          const SizedBox(height: 12),
                           if (step.isRest)
                             ..._buildRestLayout(step)
                           else
@@ -492,35 +493,33 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
     );
   }
 
-  Widget _buildProgressBar(RoutineModel routine, SessionStep step) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      child: Column(
+  /// Un tramo por ejercicio: verde lo hecho, dorado el actual y apagado lo
+  /// que falta. Reemplaza a "Ejercicio X de Y".
+  Widget _buildExerciseSegments(RoutineModel routine, SessionStep step) {
+    final total = routine.ejercicios.length;
+    final current = step.exerciseIndex;
+    return Semantics(
+      label: 'Ejercicio ${current + 1} de $total',
+      child: Row(
+        key: ExerciseSessionScreen.segmentsKey,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            // La barra avanza suave en vez de saltar entre pasos.
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(end: _plan.progressAt(_index)),
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 8,
-                backgroundColor: Colors.white.withValues(alpha: 0.08),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppTheme.goldAccent),
+          for (var i = 0; i < total; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 400),
+                height: 8,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: i < current
+                      ? AppTheme.doneGreen
+                      : i == current
+                          ? AppTheme.goldAccent
+                          : Colors.white.withValues(alpha: 0.14),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Ejercicio ${step.exerciseIndex + 1} de ${routine.ejercicios.length}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -537,54 +536,102 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
         ),
       );
 
-  Widget _buildStepHeader(SessionStep step) {
-    final color = step.isRest ? AppTheme.accentTeal : AppTheme.primaryGreen;
-    final text = step.isRest
-        ? 'Descanso · ${step.seconds}s'
-        : 'Serie ${step.serie} de ${step.totalSeries}';
+  /// Cambio de texto en dos tiempos: el anterior se va y recién entonces
+  /// llega el nuevo, así nunca se superponen.
+  static Widget _sequentialSwitch(Widget child, Animation<double> anim) =>
+      FadeTransition(opacity: anim, child: child);
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 350),
-      transitionBuilder: _popIn,
-      child: Container(
-        key: ValueKey(text),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: color,
+  /// Puntitos de vuelta (serie) + "Primera vuelta".
+  Widget _buildSeriesDots(SessionStep step) {
+    final label = '${vueltaName(step.serie)} vuelta';
+    return Semantics(
+      label: 'Serie ${step.serie} de ${step.totalSeries}',
+      child: ExcludeSemantics(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          switchInCurve: const Interval(0.5, 1),
+          switchOutCurve: const Interval(0.5, 1),
+          transitionBuilder: _sequentialSwitch,
+          child: Row(
+            key: ValueKey('dots-${step.exerciseIndex}-${step.serie}'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var s = 1; s <= step.totalSeries; s++) ...[
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: s <= step.serie ? AppTheme.doneGreen : null,
+                    border: s <= step.serie
+                        ? null
+                        : Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 2,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// Descanso: mascota flotando y el anillo grande al centro.
+  /// Qué viene después del descanso, en palabras.
+  String _restLabel() {
+    final next = _index + 1 < _plan.length ? _plan[_index + 1] : null;
+    if (next == null) return 'Respiren hondo. ¡Ya casi terminan!';
+    final current = _plan[_index];
+    if (next.exerciseIndex == current.exerciseIndex) {
+      final vuelta = vueltaName(next.serie).toLowerCase();
+      return 'Respiren hondo. Ya viene la $vuelta vuelta.';
+    }
+    return 'Respiren hondo. Ya viene: ${next.exercise.nombre}.';
+  }
+
+  /// Descanso: "Descansen", el marciano dentro del anillo que se vacía,
+  /// los segundos y qué viene después.
   List<Widget> _buildRestLayout(SessionStep step) {
     return [
-      const _FloatingMascot(),
+      const SizedBox(height: 8),
+      const Text(
+        'Descansen',
+        key: ExerciseSessionScreen.restTitleKey,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.restTeal,
+        ),
+      ),
       const SizedBox(height: 20),
       SessionTimerWidget(
         key: _timerKey,
         durationSeconds: step.seconds,
         isRest: true,
-        label: 'Descansa y respira',
+        label: _restLabel(),
         onComplete: _goNext,
         autoStart: true,
+        center: const _FloatingMascot(),
       ),
     ];
   }
 
-  /// Serie: lo protagonista es el ejercicio. El recurso va grande, el
-  /// contador en su esquina superior derecha (aparece al terminar la
-  /// preparación) y abajo la explicación en pasos simples.
+  /// Serie: lo protagonista es el ejercicio. Nombre, la vuelta en
+  /// puntitos, el recurso grande con los segundos en una insignia
+  /// redonda abajo (aparece al terminar la preparación) y la explicación
+  /// en pasos simples.
   List<Widget> _buildWorkLayout(SessionStep step) {
     final exercise = step.exercise;
     final screen = MediaQuery.sizeOf(context);
@@ -595,6 +642,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
       360.0,
       screen.height * 0.32 * 4 / 3,
     ].reduce((a, b) => a < b ? a : b);
+    const badge = SessionTimerWidget.compactSize;
 
     return [
       AnimatedSwitcher(
@@ -605,17 +653,21 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
           key: ValueKey('name-${exercise.id}'),
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 21,
+            fontSize: 26,
+            height: 1.2,
             fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 8),
+      _buildSeriesDots(step),
+      const SizedBox(height: 16),
       SizedBox(
         width: mediaWidth,
         child: Stack(
           clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
           children: [
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 450),
@@ -625,12 +677,11 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
                 exercise: exercise,
                 width: mediaWidth,
                 showLabel: false,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(28),
               ),
             ),
             Positioned(
-              top: 8,
-              right: 8,
+              bottom: -badge / 2,
               child: SessionTimerWidget(
                 key: _timerKey,
                 durationSeconds: step.seconds,
@@ -643,7 +694,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
           ],
         ),
       ),
-      const SizedBox(height: 14),
+      const SizedBox(height: badge / 2 + 16),
       _ExplanationCard(
         key: ValueKey('steps-${exercise.id}'),
         exercise: exercise,
@@ -897,13 +948,9 @@ class _FloatingMascotState extends State<_FloatingMascot>
           child: child,
         );
       },
-      child: Container(
-        width: 140,
-        height: 140,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppTheme.accentTeal.withValues(alpha: 0.12),
-        ),
+      child: SizedBox(
+        width: 150,
+        height: 150,
         child: Image.asset(
           'assets/images/mascota/alien.png',
           fit: BoxFit.contain,
@@ -985,26 +1032,16 @@ class _ExplanationCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 8),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppTheme.goldAccent
-                            .withValues(alpha: highlighted ? 0.9 : 0.25),
-                      ),
-                      child: Text(
-                        '${i + 1}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: highlighted
-                              ? AppTheme.backgroundDark
-                              : AppTheme.goldAccent,
-                        ),
+                            .withValues(alpha: highlighted ? 1 : 0.7),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         pasos[i],
@@ -1098,3 +1135,13 @@ String spokenDuration(int seconds) {
   if (s == 0) return '$m min';
   return '$m min $s s';
 }
+
+/// "Primera", "Segunda"… para nombrar la vuelta (serie) sin números.
+String vueltaName(int serie) => switch (serie) {
+      1 => 'Primera',
+      2 => 'Segunda',
+      3 => 'Tercera',
+      4 => 'Cuarta',
+      5 => 'Quinta',
+      _ => 'Otra',
+    };

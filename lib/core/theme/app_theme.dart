@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 
 /// Tema centralizado de NeuroGym
@@ -13,17 +15,34 @@ class AppTheme {
   static const Color textLight = Color(0xFFE0E0E0);
   static const Color goldAccent = Color(0xFFFFD54F);
 
+  /// Turquesa claro de los descansos (anillo y título "Descansen").
+  static const Color restTeal = Color(0xFF4DD0C4);
+
+  /// Verde de lo ya hecho (tramos de avance, vueltas completas).
+  static const Color doneGreen = Color(0xFF8BC34A);
+
+  /// Estilo único para las cifras de la sesión: mismo grosor y dígitos de
+  /// ancho fijo, para que no "bailen" mientras cuentan.
+  static TextStyle numbers(
+          {required double size, Color color = Colors.white}) =>
+      TextStyle(
+        fontSize: size,
+        fontWeight: FontWeight.w700,
+        color: color,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
   // Colores de niveles de progresión
-  static const Color levelLow = Color(0xFFE53935);      // Bajo control
-  static const Color levelModerate = Color(0xFFFDD835);  // Moderado
-  static const Color levelHigh = Color(0xFF43A047);      // Alto control
+  static const Color levelLow = Color(0xFFE53935); // Bajo control
+  static const Color levelModerate = Color(0xFFFDD835); // Moderado
+  static const Color levelHigh = Color(0xFF43A047); // Alto control
 
   // Colores de categorías de ejercicios
-  static const Color categoryRD = Color(0xFF1565C0);  // Rodilla Dominante
-  static const Color categoryCD = Color(0xFF2E7D32);  // Cadera Dominante
-  static const Color categoryEM = Color(0xFFE65100);  // Empuje
-  static const Color categoryJL = Color(0xFF6A1B9A);  // Jalón
-  static const Color categoryCR = Color(0xFFC62828);  // Core
+  static const Color categoryRD = Color(0xFF1565C0); // Rodilla Dominante
+  static const Color categoryCD = Color(0xFF2E7D32); // Cadera Dominante
+  static const Color categoryEM = Color(0xFFE65100); // Empuje
+  static const Color categoryJL = Color(0xFF6A1B9A); // Jalón
+  static const Color categoryCR = Color(0xFFC62828); // Core
 
   /// Transición de páginas suave para toda la app.
   static const PageTransitionsTheme softPageTransitions = PageTransitionsTheme(

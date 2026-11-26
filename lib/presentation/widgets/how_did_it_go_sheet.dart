@@ -41,6 +41,8 @@ class HowDidItGoSheet extends StatefulWidget {
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
+      // Tapa la sesión de atrás: solo se adivina el contador en espera.
+      barrierColor: AppTheme.backgroundDark.withValues(alpha: 0.94),
       // El botón atrás de Android tampoco la cierra: se responde o se salta.
       builder: (_) => PopScope(
         canPop: false,

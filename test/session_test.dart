@@ -280,7 +280,7 @@ void main() {
       expect(find.byKey(SessionControls.toggleKey), findsOneWidget);
       expect(find.byKey(SessionControls.nextKey), findsOneWidget);
       expect(find.text('¡Prepárate!'), findsWidgets);
-      expect(find.text('Serie 1 de 2'), findsOneWidget);
+      expect(find.text('Primera vuelta'), findsOneWidget);
 
       // Ya corrieron ~0.8s. Hasta casi el final de la preparación el
       // contador no corre y sigue el "¡Prepárate!".
@@ -326,12 +326,33 @@ void main() {
       await openSession(tester);
 
       await tapAndPump(tester, find.byKey(SessionControls.nextKey));
-      expect(find.text('Descanso · 20s'), findsOneWidget);
+      expect(find.byKey(ExerciseSessionScreen.restTitleKey), findsOneWidget);
+      expect(find.text('Respiren hondo. Ya viene la segunda vuelta.'),
+          findsOneWidget);
       expect(find.text('¡Prepárate!'), findsNothing);
 
       await tapAndPump(tester, find.byKey(SessionControls.previousKey));
-      expect(find.text('Serie 1 de 2'), findsOneWidget);
+      expect(find.text('Primera vuelta'), findsOneWidget);
       expect(find.text('¡Prepárate!'), findsWidgets);
+    });
+
+    testWidgets('solo lo esencial: tramos, vueltas y un solo número',
+        (tester) async {
+      await openSession(tester);
+      final routine = exercises.previewRoutine!;
+
+      // Un tramo por ejercicio y nada de "Ejercicio X de Y" ni "Serie X".
+      final segments = find.descendant(
+          of: find.byKey(ExerciseSessionScreen.segmentsKey),
+          matching: find.byType(AnimatedContainer));
+      expect(segments, findsNWidgets(routine.ejercicios.length));
+      expect(find.textContaining('Ejercicio 1 de'), findsNothing);
+      expect(find.textContaining('Serie 1 de'), findsNothing);
+      expect(find.text('1'), findsNothing, reason: 'pasos sin numerar');
+      expect(find.byType(SessionTimerWidget), findsOneWidget);
+      expect(vueltaName(2), 'Segunda');
+      // Deja terminar lo pendiente.
+      await tester.pump(const Duration(seconds: 6));
     });
 
     testWidgets('pregunta "¿Cómo le fue?" por ejercicio y guarda al terminar',

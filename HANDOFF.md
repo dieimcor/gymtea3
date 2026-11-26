@@ -121,6 +121,19 @@ pegado (`craterReshuffleError`); el cierre muestra "Guardando…" y solo al
 guardar "¡Cráter conquistado!" 900 ms (400 con movimiento reducido),
 fondo opaco.
 
+**Tanda 3 — propuestas de la pantalla de sesión** (lienzo privado):
+https://claude.ai/artifact/NS2qHBLduQKFuJ5RzFEg7Y — A "Panel único",
+B "Solo lo esencial", C "El tiempo en el botón" (serie + descanso cada
+una). **Eligió B e implementada** (2026-11-26): tramos por ejercicio en
+la barra (`segmentsKey`, sin "Cráter N" ni "Ejercicio X de Y"), puntitos
++ "Primera vuelta" (`vueltaName`, cambio en dos tiempos sin
+superponerse), insignia de 88 px bajo el recurso, pasos con puntos,
+descanso con "Descansen", marciano dentro del anillo de 250 px, el
+número abajo y qué viene después. Cifras con `AppTheme.numbers`
+(tabulares). "¿Cómo le fue?" con barrera casi opaca. Prepárate, portada
+y controles sin cambios. Quedan de la tanda 3: letras chicas #7, #8, #16
+(mapa/pop-up).
+
 **Siguiente — Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
 quedan (#7, #8, #16, #17). **Consultar al usuario:** "modo calma" propio
 (#21) y suavizar el giro/escala del marciano (#13). Resto: #12, #26, #27,
