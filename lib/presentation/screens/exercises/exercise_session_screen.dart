@@ -4,47 +4,95 @@ import 'package:provider/provider.dart';
 import 'package:gymtea3/core/constants/app_constants.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/data/models/exercise_model.dart';
+import 'package:gymtea3/data/models/exercise_rating.dart';
 import 'package:gymtea3/data/models/routine_model.dart';
+import 'package:gymtea3/data/models/session_step.dart';
+import 'package:gymtea3/presentation/providers/auth_provider.dart';
 import 'package:gymtea3/presentation/providers/exercise_provider.dart';
-import 'package:gymtea3/presentation/screens/exercises/rating_screen.dart';
-import 'package:gymtea3/presentation/widgets/exercise_image.dart';
+import 'package:gymtea3/presentation/providers/progress_provider.dart';
+import 'package:gymtea3/presentation/screens/rewards/comet_reward_screen.dart';
+import 'package:gymtea3/presentation/widgets/equipment_chip.dart';
+import 'package:gymtea3/presentation/widgets/exercise_media_slot.dart';
+import 'package:gymtea3/presentation/widgets/how_did_it_go_sheet.dart';
+import 'package:gymtea3/presentation/widgets/session_controls.dart';
 import 'package:gymtea3/presentation/widgets/session_timer_widget.dart';
 import 'package:gymtea3/utils/formatters.dart';
 
-/// Un paso de la rutina: una serie de un ejercicio, o un descanso.
-class _Block {
-  final ExerciseModel exercise;
-  final int serie;
-  final bool isRest;
-  final int seconds;
-
-  const _Block({
-    required this.exercise,
-    required this.serie,
-    required this.isRest,
-    required this.seconds,
-  });
-}
-
 /// Sesión activa de un cráter.
 ///
-/// Lista plana de ejercicios: N ejercicios × 2 series × 60s, con descansos
-/// incrementales según la dificultad. Sin fases y sin configuración de
-/// tiempos — los define el cráter.
+/// Lista plana de pasos (ver [SessionPlan]): cada serie parte con unos segundos de
+/// "¡Prepárate!" y luego corre sola; los descansos arrancan directo. Tras
+/// la última serie de cada ejercicio se pregunta "¿Cómo le fue?".
+///
+/// Antes de la primera serie se muestra una portada corta ("¡A entrenar
+/// juntos!") que se salta con un toque; recién al cerrarse parte la
+/// preparación.
+///
+/// Al terminar guarda el progreso, completa el cráter y, si con él se
+/// conquistó el cometa, abre la recompensa; si no, vuelve al mapa.
 class ExerciseSessionScreen extends StatefulWidget {
   const ExerciseSessionScreen({super.key});
+
+  /// Portada inicial ("¡A entrenar juntos!").
+  static const introKey = Key('session_intro');
+
+  /// Duración de la portada (normal y con animaciones reducidas).
+  static const introDuration = Duration(milliseconds: 1600);
+  static const introDurationReduced = Duration(milliseconds: 900);
 
   @override
   State<ExerciseSessionScreen> createState() => _ExerciseSessionScreenState();
 }
 
-class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
+class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
+    with TickerProviderStateMixin {
+  /// Nombre genérico cuando no hay niño registrado (o en tests).
+  static const _genericChildName = 'tu hijo/a';
+
   RoutineModel? _routine;
-  List<_Block> _blocks = const [];
-  int _blockIndex = 0;
+  SessionPlan _plan = const SessionPlan([]);
+  int _index = 0;
   int _elapsedSeconds = 0;
 
-  final GlobalKey<SessionTimerWidgetState> _timerKey = GlobalKey();
+  /// Valoraciones "¿Cómo le fue?" por ejercicio (1 a 3).
+  final Map<String, int> _ratings = {};
+
+  /// La serie actual está en su preparación ([AppConstants.prepSeconds]).
+  bool _preparing = false;
+
+  /// El padre pausó (prep o contador).
+  bool _paused = false;
+
+  /// Hay una hoja abierta o se está guardando: se ignoran los controles.
+  bool _busy = false;
+  bool _finishing = false;
+
+  /// El último guardado falló: "siguiente" reintenta el cierre.
+  bool _saveFailed = false;
+
+  /// El historial ya se guardó en un intento anterior.
+  bool _progressSaved = false;
+
+  /// Se recrea en cada paso para montar un timer nuevo.
+  GlobalKey<SessionTimerWidgetState> _timerKey = GlobalKey();
+
+  late final AnimationController _prepController = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: AppConstants.prepSeconds),
+  )..addStatusListener(_onPrepStatus);
+
+  /// Portada "¡A entrenar juntos!" antes de la primera serie.
+  bool _introVisible = false;
+
+  /// Animaciones reducidas (accesibilidad): portada más corta y sin escala.
+  bool _reduceMotion = false;
+
+  late final AnimationController _introController = AnimationController(
+    vsync: this,
+    duration: ExerciseSessionScreen.introDuration,
+  )..addStatusListener((status) {
+      if (status == AnimationStatus.completed) _endIntro();
+    });
 
   @override
   void initState() {
@@ -52,101 +100,274 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadRoutine());
   }
 
+  @override
+  void dispose() {
+    _prepController.dispose();
+    _introController.dispose();
+    super.dispose();
+  }
+
   void _loadRoutine() {
+    if (!mounted) return;
     final routine = context.read<ExerciseProvider>().previewRoutine;
     if (routine == null) {
       Navigator.pop(context);
       return;
     }
+    _routine = routine;
+    _plan = SessionPlan.fromRoutine(routine);
+    if (_plan.isEmpty) {
+      Navigator.pop(context);
+      return;
+    }
+    _startIntro();
+  }
+
+  /// Muestra la portada. El paso 0 queda montado debajo, pero su
+  /// preparación no corre hasta que la portada se cierra.
+  void _startIntro() {
+    _reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) == true;
     setState(() {
-      _routine = routine;
-      _blocks = _buildBlocks(routine);
+      _index = 0;
+      _timerKey = GlobalKey();
+      _preparing = _plan[0].prepSeconds > 0;
+      _introVisible = true;
     });
+    _introController
+      ..duration = _reduceMotion
+          ? ExerciseSessionScreen.introDurationReduced
+          : ExerciseSessionScreen.introDuration
+      ..forward(from: 0);
   }
 
-  /// Arma la secuencia: serie → descanso → serie → … sin descanso final.
-  List<_Block> _buildBlocks(RoutineModel routine) {
-    final blocks = <_Block>[];
-
-    for (final exercise in routine.ejercicios) {
-      for (var serie = 1; serie <= routine.series; serie++) {
-        blocks.add(_Block(
-          exercise: exercise,
-          serie: serie,
-          isRest: false,
-          seconds: AppConstants.exerciseSeconds,
-        ));
-        blocks.add(_Block(
-          exercise: exercise,
-          serie: serie,
-          isRest: true,
-          seconds: routine.restSeconds,
-        ));
-      }
-    }
-
-    // El último descanso sobra.
-    if (blocks.isNotEmpty && blocks.last.isRest) {
-      blocks.removeLast();
-    }
-    return blocks;
+  /// Cierra la portada (al terminar o con un toque) y parte la serie 1.
+  void _endIntro() {
+    if (!_introVisible || !mounted) return;
+    _introController.stop();
+    setState(() => _introVisible = false);
+    _enterStep(0);
   }
 
-  _Block? get _currentBlock =>
-      _blockIndex < _blocks.length ? _blocks[_blockIndex] : null;
-
-  /// Ejercicios ya terminados (sus dos series completas).
-  ///
-  /// [upTo] es el indice del primer bloque que todavia NO cuenta. Al
-  /// terminar la rutina hay que incluir el ultimo bloque, que si se hizo.
-  Set<String> _completedExerciseIds(int upTo) {
-    final routine = _routine;
-    if (routine == null) return {};
-
-    final done = <String>{};
-    for (var i = 0; i < upTo && i < _blocks.length; i++) {
-      final block = _blocks[i];
-      if (block.isRest || block.serie != routine.series) continue;
-      done.add(block.exercise.id);
-    }
-    return done;
+  /// Primer nombre del niño, para la portada ("Tomás y tú…").
+  String get _childFirstName {
+    final name = _childName;
+    if (name == _genericChildName) return 'Tu hijo/a';
+    return name.split(RegExp(r'\s+')).first;
   }
 
-  double get _progress =>
-      _blocks.isEmpty ? 0 : _blockIndex / _blocks.length;
+  SessionStep? get _step => _index < _plan.length ? _plan[_index] : null;
 
-  void _advance() {
-    _elapsedSeconds += _timerKey.currentState?.elapsedSeconds ?? 0;
+  String get _childName {
+    try {
+      final name = context.read<AuthProvider>().currentChild?.nombre.trim();
+      return (name == null || name.isEmpty) ? _genericChildName : name;
+    } on ProviderNotFoundException {
+      return _genericChildName;
+    }
+  }
 
-    if (_blockIndex >= _blocks.length - 1) {
+  // ------------------------------------------------------------------
+  // Movimiento entre pasos
+  // ------------------------------------------------------------------
+
+  /// Monta el paso [index]: las series pasan por la preparación, los
+  /// descansos arrancan solos.
+  void _enterStep(int index) {
+    final step = _plan[index];
+    setState(() {
+      _index = index;
+      _saveFailed = false;
+      _timerKey = GlobalKey();
+      _paused = false;
+      _preparing = step.prepSeconds > 0;
+    });
+    if (_preparing) {
+      _prepController.forward(from: 0);
+    } else {
+      _prepController.stop();
+      _prepController.value = 0;
+    }
+  }
+
+  void _onPrepStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !_preparing || !mounted) return;
+    setState(() => _preparing = false);
+    // Termina la preparación: el ejercicio arranca solo.
+    _timerKey.currentState?.start();
+  }
+
+  /// Suma lo entrenado en el paso que se deja y congela todo.
+  void _leaveStep() {
+    final timer = _timerKey.currentState;
+    final step = _step;
+    if (timer != null && step != null && !step.isRest) {
+      _elapsedSeconds += timer.elapsedSeconds;
+    }
+    timer?.pause();
+    _prepController.stop();
+  }
+
+  Future<void> _goNext() async {
+    if (_busy || _introVisible || _step == null) return;
+    if (_saveFailed) {
+      // Ya se terminó la última serie y se valoró: solo falta guardar.
+      await _finish();
+      return;
+    }
+    final step = _step!;
+    final asksRating = _plan.asksRatingAt(_index);
+    _leaveStep();
+
+    // "¿Cómo le fue?" va después del descanso del ejercicio (o al final de
+    // la rutina), nunca con el ejercicio siguiente ya corriendo.
+    if (asksRating) {
+      await _askHowDidItGo(step);
+      if (!mounted) return;
+    }
+
+    if (_plan.isLast(_index)) {
+      await _finish();
+    } else {
+      _enterStep(_index + 1);
+    }
+  }
+
+  void _goPrevious() {
+    if (_busy || _introVisible || _step == null) return;
+    _leaveStep();
+    _enterStep(_plan.previousWorkIndex(_index));
+  }
+
+  void _togglePause() {
+    if (_busy || _introVisible || _step == null) return;
+    if (_saveFailed) {
+      // La rutina ya terminó: "continuar" reintenta el guardado en vez de
+      // volver a correr la última serie.
       _finish();
       return;
     }
-    setState(() => _blockIndex++);
+    final timer = _timerKey.currentState;
+    setState(() => _paused = !_paused);
+
+    if (_paused) {
+      if (_preparing) {
+        _prepController.stop();
+      } else {
+        timer?.pause();
+      }
+    } else {
+      if (_preparing) {
+        _prepController.forward();
+      } else {
+        timer?.start();
+      }
+    }
   }
+
+  Future<void> _askHowDidItGo(SessionStep step) async {
+    setState(() => _busy = true);
+    final exercise = step.exercise;
+    final rating = await HowDidItGoSheet.show(
+      context,
+      childName: _childName,
+      exerciseName: exercise.nombre,
+      initial: ExerciseRating.fromStars(_ratings[exercise.id]),
+    );
+    if (!mounted) return;
+    // Si se re-valora un ejercicio, se sobrescribe.
+    if (rating != null) _ratings[exercise.id] = rating.stars;
+    setState(() => _busy = false);
+  }
+
+  // ------------------------------------------------------------------
+  // Cierre
+  // ------------------------------------------------------------------
 
   Future<void> _finish() async {
     final routine = _routine;
-    if (routine == null) return;
+    if (routine == null || _finishing) return;
 
-    await Navigator.pushReplacementNamed(
-      context,
-      RatingScreen.routeName,
-      arguments: RatingScreenArgs(
-        routine: routine,
+    setState(() {
+      _busy = true;
+      _finishing = true;
+    });
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final childName = _childName;
+    final completedIds = _plan.completedExerciseIds(_plan.length).toList();
+    final progressProvider = context.read<ProgressProvider>();
+    final exerciseProvider = context.read<ExerciseProvider>();
+
+    final LevelCompletion completion;
+    try {
+      // Si un intento anterior ya guardó el historial, no se duplica.
+      if (!_progressSaved) {
+        await progressProvider.recordSessionProgress(
+          childId: routine.childId,
+          sessionId: routine.id,
+          level: routine.nivel,
+          completedExerciseIds: completedIds,
+          elapsedSeconds: _elapsedSeconds,
+          calificaciones: Map.of(_ratings),
+        );
+        _progressSaved = true;
+      }
+      if (!mounted) return;
+
+      completion = await exerciseProvider.completeLevel(
+        routine.nivel,
+        exercisesDone: completedIds.length,
         elapsedSeconds: _elapsedSeconds,
-        // +1: el bloque actual es el ultimo y tambien se completo.
-        completedExerciseIds: _completedExerciseIds(_blockIndex + 1).toList(),
-      ),
-    );
+      );
+    } catch (_) {
+      if (!mounted) return;
+      // No se pudo guardar: se libera la pantalla para reintentar con
+      // "siguiente" o salir, en vez de quedar pegados en el overlay.
+      setState(() {
+        _busy = false;
+        _finishing = false;
+        _saveFailed = true;
+        _paused = true;
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'No pudimos guardar el cráter. Toca "siguiente" para '
+            'intentarlo de nuevo.',
+          ),
+          action: SnackBarAction(label: 'Reintentar', onPressed: _finish),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    if (completion.cometCompleted) {
+      await navigator.pushReplacementNamed(
+        CometRewardScreen.routeName,
+        arguments: CometRewardArgs(
+          childName: childName,
+          cometIndex: completion.cometIndex,
+          journeyCompleted: completion.journeyCompleted,
+          route: routine.ruta ?? exerciseProvider.route,
+        ),
+      );
+    } else {
+      navigator.pop();
+    }
   }
+
+  // ------------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final routine = _routine;
-    final block = _currentBlock;
+    final step = _step;
 
-    if (routine == null || block == null) {
+    if (routine == null || step == null) {
       return const Scaffold(
         backgroundColor: AppTheme.backgroundDark,
         body: Center(child: CircularProgressIndicator()),
@@ -156,7 +377,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _showExitConfirmation();
+        if (!didPop && !_finishing) _showExitConfirmation();
       },
       child: Scaffold(
         backgroundColor: AppTheme.backgroundDark,
@@ -173,57 +394,48 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
           ),
           leading: IconButton(
             icon: const Icon(Icons.close_rounded, color: Colors.white),
-            onPressed: _showExitConfirmation,
+            onPressed: _finishing ? null : _showExitConfirmation,
           ),
         ),
         body: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              _buildProgressBar(routine),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      _buildBlockHeader(routine, block),
-                      const SizedBox(height: 16),
-                      if (!block.isRest)
-                        ExerciseImage(
-                          exercise: block.exercise,
-                          size: 140,
-                          borderRadius: BorderRadius.circular(24),
-                        )
-                      else
-                        _buildRestIllustration(),
-                      const SizedBox(height: 20),
-                      SessionTimerWidget(
-                        key: ValueKey(_blockIndex),
-                        durationSeconds: block.seconds,
-                        isRest: block.isRest,
-                        label: block.isRest
-                            ? 'Descansa y respira'
-                            : block.exercise.nombre,
-                        onComplete: _advance,
-                        autoStart: block.isRest,
+              Column(
+                children: [
+                  _buildProgressBar(routine, step),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          _buildStepHeader(step),
+                          const SizedBox(height: 12),
+                          if (step.isRest)
+                            ..._buildRestLayout(step)
+                          else
+                            ..._buildWorkLayout(step),
+                          const SizedBox(height: 16),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      if (!block.isRest)
-                        Text(
-                          block.exercise.descripcion,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.4,
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
-                ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                    child: SessionControls(
+                      isRunning: !_paused,
+                      preparing: _preparing,
+                      prepAnimation: _prepController,
+                      previousDimmed: _index == 0,
+                      onPrevious: _goPrevious,
+                      onTogglePause: _togglePause,
+                      onNext: _goNext,
+                    ),
+                  ),
+                ],
               ),
-              _buildControls(block),
+              if (_introVisible) _buildIntroOverlay(routine),
+              if (_finishing) _buildSavingOverlay(),
             ],
           ),
         ),
@@ -231,26 +443,30 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
     );
   }
 
-  Widget _buildProgressBar(RoutineModel routine) {
-    final exerciseNumber = routine.ejercicios.indexOf(_currentBlock!.exercise) + 1;
-
+  Widget _buildProgressBar(RoutineModel routine, SessionStep step) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: Column(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: _progress,
-              minHeight: 6,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppTheme.goldAccent),
+            borderRadius: BorderRadius.circular(6),
+            // La barra avanza suave en vez de saltar entre pasos.
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(end: _plan.progressAt(_index)),
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 8,
+                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppTheme.goldAccent),
+              ),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Ejercicio $exerciseNumber de ${routine.ejercicios.length}',
+            'Ejercicio ${step.exerciseIndex + 1} de ${routine.ejercicios.length}',
             style: TextStyle(
               fontSize: 12,
               color: Colors.white.withValues(alpha: 0.5),
@@ -261,106 +477,252 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
     );
   }
 
-  Widget _buildBlockHeader(RoutineModel routine, _Block block) {
-    final color = block.isRest ? AppTheme.accentTeal : AppTheme.primaryGreen;
+  /// Transición infantil entre pasos: lo nuevo entra con un saltito.
+  Widget _popIn(Widget child, Animation<double> anim) => FadeTransition(
+        opacity: anim,
+        child: ScaleTransition(
+          scale: Tween(begin: 0.85, end: 1.0).animate(
+            CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+          ),
+          child: child,
+        ),
+      );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        block.isRest
-            ? 'Descanso · ${block.seconds}s'
-            : 'Serie ${block.serie} de ${routine.series}',
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: color,
+  Widget _buildStepHeader(SessionStep step) {
+    final color = step.isRest ? AppTheme.accentTeal : AppTheme.primaryGreen;
+    final text = step.isRest
+        ? 'Descanso · ${step.seconds}s'
+        : 'Serie ${step.serie} de ${step.totalSeries}';
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder: _popIn,
+      child: Container(
+        key: ValueKey(text),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildRestIllustration() {
-    return Container(
-      width: 140,
-      height: 140,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppTheme.accentTeal.withValues(alpha: 0.12),
+  /// Descanso: mascota flotando y el anillo grande al centro.
+  List<Widget> _buildRestLayout(SessionStep step) {
+    return [
+      const _FloatingMascot(),
+      const SizedBox(height: 20),
+      SessionTimerWidget(
+        key: _timerKey,
+        durationSeconds: step.seconds,
+        isRest: true,
+        label: 'Descansa y respira',
+        onComplete: _goNext,
+        autoStart: true,
       ),
-      child: Image.asset(
-        'assets/images/mascota/alien.png',
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Icon(
-          Icons.self_improvement_rounded,
-          size: 64,
-          color: AppTheme.accentTeal,
+    ];
+  }
+
+  /// Serie: lo protagonista es el ejercicio. El recurso va grande, el
+  /// contador en su esquina superior derecha (aparece al terminar la
+  /// preparación) y abajo la explicación en pasos simples.
+  List<Widget> _buildWorkLayout(SessionStep step) {
+    final exercise = step.exercise;
+    final screen = MediaQuery.sizeOf(context);
+    // Ancho del recurso: todo el ancho útil, sin pasar de 360 ni comerse
+    // la pantalla en teléfonos bajos.
+    final mediaWidth = [
+      screen.width - 40,
+      360.0,
+      screen.height * 0.32 * 4 / 3,
+    ].reduce((a, b) => a < b ? a : b);
+
+    return [
+      AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        transitionBuilder: _popIn,
+        child: Text(
+          exercise.nombre,
+          key: ValueKey('name-${exercise.id}'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      SizedBox(
+        width: mediaWidth,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 450),
+              transitionBuilder: _popIn,
+              child: ExerciseMediaSlot(
+                key: ValueKey('media-${exercise.id}'),
+                exercise: exercise,
+                width: mediaWidth,
+                showLabel: false,
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: SessionTimerWidget(
+                key: _timerKey,
+                durationSeconds: step.seconds,
+                label: exercise.nombre,
+                onComplete: _goNext,
+                preparing: _preparing,
+                compact: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 14),
+      _ExplanationCard(
+        key: ValueKey('steps-${exercise.id}'),
+        exercise: exercise,
+        highlighted: _preparing,
+      ),
+    ];
+  }
+
+  /// Portada "¡A entrenar juntos!": entra, se queda un momento y sale
+  /// agrandándose y desvaneciéndose. Un toque la salta. Con animaciones
+  /// reducidas solo aparece y desaparece con un fundido.
+  Widget _buildIntroOverlay(RoutineModel routine) {
+    return Positioned.fill(
+      child: GestureDetector(
+        key: ExerciseSessionScreen.introKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: _endIntro,
+        child: AnimatedBuilder(
+          animation: _introController,
+          builder: (context, child) {
+            final t = _introController.value;
+            // Entra en el primer 20 % y sale en el último 25 %.
+            final fadeIn = (t / 0.2).clamp(0.0, 1.0);
+            final fadeOut = ((1 - t) / 0.25).clamp(0.0, 1.0);
+            final opacity = fadeIn < fadeOut ? fadeIn : fadeOut;
+            var scale = 1.0;
+            if (!_reduceMotion) {
+              scale = t < 0.2
+                  ? 0.8 + 0.2 * Curves.easeOutBack.transform(fadeIn)
+                  : 1.0 + 0.12 * (1 - fadeOut);
+            }
+            // El fondo siempre tapa la sesión: la preparación aún no corre.
+            return ColoredBox(
+              color: AppTheme.backgroundDark
+                  .withValues(alpha: 0.96 * (0.4 + 0.6 * opacity)),
+              child: Opacity(
+                opacity: opacity,
+                child: Transform.scale(scale: scale, child: child),
+              ),
+            );
+          },
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/mascota/alien.png',
+                    height: 130,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.rocket_launch_rounded,
+                      size: 90,
+                      color: AppTheme.goldAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    '¡A entrenar juntos!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.goldAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_childFirstName y tú contra el Cráter ${routine.nivel}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Toca para empezar',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildControls(_Block block) {
-    final timer = _timerKey.currentState;
-    final isRunning = timer?.isRunning ?? false;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                _timerKey.currentState?.toggle();
-                setState(() {});
-              },
-              icon: Icon(
-                isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              ),
-              label: Text(isRunning ? 'Pausar' : 'Iniciar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isRunning ? Colors.white.withValues(alpha: 0.12) : null,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+  Widget _buildSavingOverlay() {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: AppTheme.backgroundDark.withValues(alpha: 0.85),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.rocket_launch_rounded,
+                  size: 56, color: AppTheme.goldAccent),
+              SizedBox(height: 12),
+              Text(
+                '¡Cráter conquistado!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.goldAccent,
                 ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: _advance,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white70,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Text(
-                _blockIndex >= _blocks.length - 1
-                    ? 'Terminar'
-                    : block.isRest
-                        ? 'Saltar'
-                        : 'Listo',
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   void _showExitConfirmation() {
-    showDialog(
+    if (_finishing) return;
+    // Se congela la sesión (o la portada) mientras el padre decide.
+    final inIntro = _introVisible;
+    if (inIntro) _introController.stop();
+    final wasPaused = _paused;
+    if (!inIntro && !wasPaused && !_busy) _togglePause();
+
+    showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.surfaceDark,
@@ -370,23 +732,254 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen> {
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'Llevas ${Formatters.formatDuration(_elapsedSeconds)} de entrenamiento. '
-          'Si sales ahora, esta rutina no se guardará.',
+          'Llevan ${Formatters.formatDuration(_elapsedSeconds)} de entrenamiento. '
+          'Si salen ahora, esta rutina no se guardará.',
           style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Seguir entrenando'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: Text('Salir', style: TextStyle(color: AppTheme.levelLow)),
           ),
         ],
+      ),
+    ).then((exit) {
+      if (!mounted) return;
+      if (exit == true) {
+        Navigator.pop(context);
+      } else if (inIntro) {
+        if (_introVisible) _introController.forward();
+      } else if (!wasPaused && _paused) {
+        _togglePause();
+      }
+    });
+  }
+}
+
+/// Mascota que flota suavemente durante los descansos.
+class _FloatingMascot extends StatefulWidget {
+  const _FloatingMascot();
+
+  @override
+  State<_FloatingMascot> createState() => _FloatingMascotState();
+}
+
+class _FloatingMascotState extends State<_FloatingMascot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        return Transform.translate(
+          offset: Offset(0, -8 * t),
+          child: child,
+        );
+      },
+      child: Container(
+        width: 140,
+        height: 140,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppTheme.accentTeal.withValues(alpha: 0.12),
+        ),
+        child: Image.asset(
+          'assets/images/mascota/alien.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.self_improvement_rounded,
+            size: 64,
+            color: AppTheme.accentTeal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Explicación del ejercicio en pasos simples y numerados.
+///
+/// Mientras la serie se prepara queda destacada (borde dorado y un poco
+/// más grande) para que el padre se la lea al niño; al arrancar el
+/// ejercicio se suaviza y deja el protagonismo al recurso.
+class _ExplanationCard extends StatelessWidget {
+  final ExerciseModel exercise;
+  final bool highlighted;
+
+  const _ExplanationCard({
+    super.key,
+    required this.exercise,
+    required this.highlighted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pasos = exercise.pasosSimples;
+    final accent = highlighted
+        ? AppTheme.goldAccent
+        : Colors.white.withValues(alpha: 0.55);
+
+    return AnimatedScale(
+      scale: highlighted ? 1.0 : 0.96,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutBack,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 350),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        decoration: BoxDecoration(
+          color: highlighted
+              ? AppTheme.goldAccent.withValues(alpha: 0.10)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: highlighted
+                ? AppTheme.goldAccent.withValues(alpha: 0.7)
+                : Colors.white.withValues(alpha: 0.08),
+            width: highlighted ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lightbulb_rounded, size: 18, color: accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Así se hace',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (var i = 0; i < pasos.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.goldAccent
+                            .withValues(alpha: highlighted ? 0.9 : 0.25),
+                      ),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: highlighted
+                              ? AppTheme.backgroundDark
+                              : AppTheme.goldAccent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        pasos[i],
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white
+                              .withValues(alpha: highlighted ? 0.95 : 0.75),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (exercise.queUsar != null) _buildGear(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "Banco" → "banco", pero las siglas quedan igual ("TRX").
+  static String _decapitalize(String s) {
+    if (s.length < 2 || s[1] != s[1].toLowerCase()) return s;
+    return s[0].toLowerCase() + s.substring(1);
+  }
+
+  /// "Usa: Silla firme (en vez de banco)": qué tener a mano en casa.
+  Widget _buildGear() {
+    final usar = exercise.queUsar!;
+    final original = exercise.implemento;
+    final showOriginal = exercise.reemplazo != null &&
+        original != null &&
+        original.trim().toLowerCase() != usar.trim().toLowerCase();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.accentTeal.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
+          border:
+              Border.all(color: AppTheme.accentTeal.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              EquipmentIcons.forText(usar),
+              size: 18,
+              color: AppTheme.accentTeal,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Usa: $usar',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (showOriginal)
+                      TextSpan(
+                        text: ' (en vez de ${_decapitalize(original)})',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                  ],
+                ),
+                style: const TextStyle(fontSize: 14, height: 1.3),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

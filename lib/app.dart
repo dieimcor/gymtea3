@@ -20,8 +20,10 @@ import 'package:gymtea3/presentation/screens/splash/splash_screen.dart';
 import 'package:gymtea3/presentation/screens/auth/login_screen.dart';
 import 'package:gymtea3/presentation/screens/home/crater_map_screen.dart';
 import 'package:gymtea3/presentation/screens/exercises/exercise_session_screen.dart';
-import 'package:gymtea3/presentation/screens/exercises/rating_screen.dart';
+import 'package:gymtea3/presentation/screens/rewards/comet_reward_screen.dart';
 import 'package:gymtea3/presentation/screens/minigames/minigames_screen.dart';
+import 'package:gymtea3/presentation/screens/route/launch_screen.dart';
+import 'package:gymtea3/presentation/screens/route/route_selection_screen.dart';
 
 /// NeuroGym — App principal con MultiProvider y rutas nombradas
 class NeuroGymApp extends StatelessWidget {
@@ -66,11 +68,16 @@ class NeuroGymApp extends StatelessWidget {
           '/splash': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
 
+          // Elección de la ruta de entrenamiento y su despegue.
+          RouteSelectionScreen.routeName: (context) =>
+              const RouteSelectionScreen(),
+          LaunchScreen.routeName: (context) => const LaunchScreen(),
+
           // El mapa de cráteres es ahora la pantalla principal.
           '/home': (context) => const CraterMapScreen(),
 
           '/exercises/session': (context) => const ExerciseSessionScreen(),
-          RatingScreen.routeName: (context) => const RatingScreen(),
+          CometRewardScreen.routeName: (context) => const CometRewardScreen(),
           MinigamesScreen.routeName: (context) => const MinigamesScreen(),
         },
       ),

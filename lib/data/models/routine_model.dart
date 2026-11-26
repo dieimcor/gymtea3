@@ -1,6 +1,7 @@
 import 'package:gymtea3/core/constants/app_constants.dart';
 import 'package:gymtea3/data/models/difficulty.dart';
 import 'package:gymtea3/data/models/exercise_model.dart';
+import 'package:gymtea3/data/models/training_route.dart';
 
 /// Rutina de un cráter: lista plana de ejercicios sorteados.
 ///
@@ -18,6 +19,10 @@ class RoutineModel {
   final List<ExerciseModel> ejercicios;
   final DateTime fecha;
 
+  /// Ruta elegida por el padre: define la duración de las series.
+  /// `null` en rutinas antiguas (se usan los 60 s por defecto).
+  final TrainingRoute? ruta;
+
   RoutineModel({
     required this.id,
     required this.childId,
@@ -25,11 +30,12 @@ class RoutineModel {
     required this.dificultad,
     required this.ejercicios,
     required this.fecha,
+    this.ruta,
   });
 
   int get series => dificultad.series;
   int get restSeconds => dificultad.restSeconds;
-  int get exerciseSeconds => AppConstants.exerciseSeconds;
+  int get exerciseSeconds => ruta?.seriesSeconds ?? AppConstants.exerciseSeconds;
 
   /// Total de bloques de trabajo (ejercicio × serie).
   int get totalBlocks => ejercicios.length * series;
@@ -51,6 +57,7 @@ class RoutineModel {
           .map((e) => ExerciseModel.fromJson(e))
           .toList(),
       fecha: DateTime.parse(json['fecha']),
+      ruta: TrainingRoute.fromName(json['ruta']),
     );
   }
 
@@ -61,5 +68,6 @@ class RoutineModel {
         'dificultad': dificultad.name,
         'ejercicios': ejercicios.map((e) => e.toJson()).toList(),
         'fecha': fecha.toIso8601String(),
+        'ruta': ruta?.name,
       };
 }

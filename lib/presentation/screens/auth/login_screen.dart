@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/presentation/providers/auth_provider.dart';
+import 'package:gymtea3/presentation/providers/exercise_provider.dart';
+import 'package:gymtea3/presentation/widgets/bouncy_tap.dart';
 import 'package:gymtea3/presentation/widgets/rut_input_field.dart';
 
 /// Pantalla de Login — autenticación con RUT + contraseña
@@ -20,6 +22,8 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _logoAnimation;
 
   @override
   void initState() {
@@ -32,6 +36,21 @@ class _LoginScreenState extends State<LoginScreen>
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
       curve: Curves.easeOut,
+    );
+
+    // El formulario sube suavemente mientras aparece.
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // El logo entra con un pequeño rebote.
+    _logoAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: const Interval(0.1, 1, curve: Curves.elasticOut),
     );
   }
 
@@ -47,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthProvider>();
+    final exerciseProvider = context.read<ExerciseProvider>();
     final rut = _rutController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -55,7 +75,13 @@ class _LoginScreenState extends State<LoginScreen>
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, '/home');
+      // La primera vez se elige la ruta de entrenamiento.
+      final route = await exerciseProvider.loadSelectedRoute();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        route != null ? '/home' : '/route',
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -96,11 +122,15 @@ class _LoginScreenState extends State<LoginScreen>
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: FadeTransition(
                 opacity: _fadeAnimation,
+                child: SlideTransition(
+                position: _slideAnimation,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Logo
-                    Container(
+                    ScaleTransition(
+                    scale: _logoAnimation,
+                    child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -117,6 +147,7 @@ class _LoginScreenState extends State<LoginScreen>
                           );
                         },
                       ),
+                    ),
                     ),
 
                     const SizedBox(height: 24),
@@ -223,7 +254,8 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 32),
 
                           // Botón Login
-                          SizedBox(
+                          BouncyTap(
+                          child: SizedBox(
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
@@ -261,6 +293,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                     ),
                             ),
+                          ),
                           ),
                         ],
                       ),
@@ -322,6 +355,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             ),

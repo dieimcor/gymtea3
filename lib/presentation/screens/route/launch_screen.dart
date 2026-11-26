@@ -1,0 +1,440 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'package:gymtea3/core/theme/app_theme.dart';
+import 'package:gymtea3/core/theme/comet_theme.dart';
+import 'package:gymtea3/data/models/training_route.dart';
+import 'package:gymtea3/presentation/animations/comet_travel.dart';
+import 'package:gymtea3/presentation/providers/exercise_provider.dart';
+
+/// Despegue: la introducción que se ve después de elegir la ruta.
+///
+/// 1. cuenta regresiva grande 3 · 2 · 1 (cada número aparece con un pop),
+/// 2. el marciano despega con su llama mientras las estrellas se estiran,
+/// 3. el primer planeta de la ruta se acerca con "¡Rumbo al …!",
+/// 4. se pasa al mapa (`/home`).
+///
+/// Dura ~3,8 s y se puede saltar tocando la pantalla. Con "reducir
+/// movimiento" activo es solo un fundido corto con el planeta y el texto.
+class LaunchScreen extends StatefulWidget {
+  static const String routeName = '/launch';
+
+  /// Duración completa del despegue.
+  static const Duration duration = Duration(milliseconds: 3800);
+
+  /// Duración con "reducir movimiento".
+  static const Duration reducedDuration = Duration(milliseconds: 600);
+
+  /// Ruta a la que se va al terminar.
+  final String nextRoute;
+
+  const LaunchScreen({super.key, this.nextRoute = '/home'});
+
+  @override
+  State<LaunchScreen> createState() => _LaunchScreenState();
+}
+
+class _LaunchScreenState extends State<LaunchScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: LaunchScreen.duration)
+        ..addStatusListener((status) {
+          if (status == AnimationStatus.completed) _finish();
+        });
+
+  /// Estrellas fijas para que no "salten" entre frames.
+  late final List<SpeedStar> _stars = () {
+    final random = math.Random(11);
+    return List.generate(110, (_) => SpeedStar.random(random));
+  }();
+
+  bool _reduced = false;
+  bool _started = false;
+  bool _done = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    _reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (_reduced) _controller.duration = LaunchScreen.reducedDuration;
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Va al mapa (una sola vez: al terminar o al tocar para saltar).
+  void _finish() {
+    if (_done || !mounted) return;
+    _done = true;
+    _controller.stop();
+    Navigator.pushReplacementNamed(context, widget.nextRoute);
+  }
+
+  /// Avance local de [t] dentro de la ventana [begin, end], con curva.
+  static double _phase(double t, double begin, double end,
+      [Curve curve = Curves.linear]) {
+    if (t <= begin) return 0;
+    if (t >= end) return 1;
+    return curve.transform((t - begin) / (end - begin));
+  }
+
+  /// Segundos del despegue completo pasados a fracción del controlador.
+  static double _s(double seconds) =>
+      seconds * 1000 / LaunchScreen.duration.inMilliseconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<ExerciseProvider>();
+    final route = provider.route;
+    final comet = provider.cometTheme(provider.cometIndex);
+    // El despegue muestra el cometa completo; el tablero, el de 4 cráteres.
+    const sprite = kFullCometAsset;
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundDark,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _finish,
+        child: Semantics(
+          liveRegion: true,
+          label: '${CometTravel.messageFor(comet)} Toca para continuar.',
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = constraints.biggest;
+              return AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) => _reduced
+                    ? _buildReduced(
+                        size, _controller.value, route, comet, sprite)
+                    : _buildFrame(
+                        size, _controller.value, route, comet, sprite),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Despegue completo
+  // ------------------------------------------------------------------
+
+  Widget _buildFrame(Size size, double t, TrainingRoute route, CometTheme comet,
+      String sprite) {
+    // Las estrellas arrancan lentas y aceleran al despegar.
+    final speed = 0.12 + 0.88 * _phase(t, _s(1.6), _s(2.6), Curves.easeIn);
+    // Al final todo se desvanece hacia el mapa.
+    final outro = 1 - _phase(t, _s(3.5), 1);
+
+    return Opacity(
+      opacity: outro.clamp(0.0, 1.0),
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.hardEdge,
+        children: [
+          RepaintBoundary(
+            child: CustomPaint(
+              painter: SpeedStarsPainter(
+                stars: _stars,
+                progress: t,
+                speed: speed,
+                tint: Colors.white,
+                centerY: 0.42,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          _buildPlanet(size, t, comet, sprite),
+          _buildRocketAlien(size, t, route),
+          _buildCountdown(size, t, route),
+          _buildMessage(size, t, route, comet),
+          _buildSkipHint(t),
+        ],
+      ),
+    );
+  }
+
+  /// 3 · 2 · 1, cada número ~0,7 s, con pop elástico.
+  Widget _buildCountdown(Size size, double t, TrainingRoute route) {
+    const step = 0.7;
+    for (var i = 0; i < 3; i++) {
+      final begin = _s(step * i);
+      final end = _s(step * (i + 1));
+      if (t < begin || t >= end) continue;
+
+      final p = _phase(t, begin, end);
+      final pop = Curves.elasticOut.transform((p * 1.6).clamp(0.0, 1.0));
+      final fade = 1 - _phase(p, 0.7, 1);
+
+      return Positioned(
+        left: 0,
+        right: 0,
+        top: size.height * 0.16,
+        child: Opacity(
+          opacity: fade.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: 0.3 + 0.7 * pop,
+            child: Text(
+              '${3 - i}',
+              key: ValueKey('countdown-${3 - i}'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 120,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                shadows: [
+                  Shadow(color: route.color, blurRadius: 30),
+                  Shadow(
+                    color: AppTheme.goldAccent.withValues(alpha: 0.6),
+                    blurRadius: 60,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  /// El marciano espera temblando de emoción y despega con su llama.
+  Widget _buildRocketAlien(Size size, double t, TrainingRoute route) {
+    final rise = _phase(t, _s(1.9), _s(2.9), Curves.easeInCubic);
+    if (rise >= 1) return const SizedBox.shrink();
+
+    const alienSize = 120.0;
+    final baseTop = size.height * 0.58;
+    final top = baseTop - rise * (baseTop + alienSize * 2.2);
+
+    // Tiembla un poco durante la cuenta (motor encendido).
+    final rumble = t < _s(1.9) ? math.sin(t * 160) * 1.6 : 0.0;
+
+    // La llama crece al despegar y titila.
+    final ignition = _phase(t, _s(1.2), _s(2.1), Curves.easeOut);
+    final flicker = 0.85 + 0.15 * math.sin(t * 90);
+    final flameHeight = (20 + 90 * ignition) * flicker;
+
+    return Positioned(
+      left: (size.width - alienSize) / 2 + rumble,
+      top: top,
+      width: alienSize,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            'assets/images/mascota/alien.png',
+            width: alienSize,
+            height: alienSize,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.rocket_launch_rounded,
+              color: AppTheme.goldAccent,
+              size: 80,
+            ),
+          ),
+          _Flame(width: 34 + 10 * ignition, height: flameHeight),
+        ],
+      ),
+    );
+  }
+
+  /// El primer planeta de la ruta llega desde el fondo.
+  Widget _buildPlanet(Size size, double t, CometTheme comet, String sprite) {
+    final p = _phase(t, _s(2.4), _s(3.3), Curves.easeOutBack);
+    if (p <= 0) return const SizedBox.shrink();
+
+    final w = math.min(size.width * 0.72, 340.0);
+    final h = w / kFullCometAspect;
+    final opacity = _phase(t, _s(2.4), _s(2.7));
+
+    return Positioned(
+      left: (size.width - w) / 2,
+      top: size.height * 0.46 - h / 2,
+      width: w,
+      height: h,
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.rotate(
+          angle: 0.4 * (1 - p),
+          child: Transform.scale(
+            scale: 0.05 + 0.95 * p,
+            child: ThemedCometSprite(sprite: sprite, theme: comet),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessage(
+      Size size, double t, TrainingRoute route, CometTheme comet) {
+    final inP = _phase(t, _s(2.6), _s(3.2), Curves.elasticOut);
+    final opacity = _phase(t, _s(2.6), _s(2.8));
+    if (opacity <= 0) return const SizedBox.shrink();
+
+    return Positioned(
+      left: 24,
+      right: 24,
+      top: size.height * 0.1,
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.scale(
+          scale: 0.5 + 0.5 * inP,
+          child: _MessageBlock(route: route, comet: comet),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkipHint(double t) {
+    final opacity = _phase(t, _s(0.6), _s(1.2)) * 0.55;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 28,
+      child: SafeArea(
+        top: false,
+        child: Opacity(
+          opacity: opacity,
+          child: const Text(
+            'Toca para continuar',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Movimiento reducido
+  // ------------------------------------------------------------------
+
+  Widget _buildReduced(Size size, double t, TrainingRoute route,
+      CometTheme comet, String sprite) {
+    final w = math.min(size.width * 0.66, 320.0);
+    final h = w / kFullCometAspect;
+    final opacity = Curves.easeOut.transform(t);
+
+    return Opacity(
+      opacity: opacity,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _MessageBlock(route: route, comet: comet),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: w,
+            height: h,
+            child: ThemedCometSprite(sprite: sprite, theme: comet),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "¡Rumbo al …!" con el chip de la ruta.
+class _MessageBlock extends StatelessWidget {
+  final TrainingRoute route;
+  final CometTheme comet;
+
+  const _MessageBlock({required this.route, required this.comet});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          CometTravel.messageFor(comet),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            shadows: [Shadow(color: comet.glow, blurRadius: 20)],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: route.color.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: route.color),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(route.icon, size: 18, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                'Ruta ${route.label}',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Llama del despegue: una gota invertida con degradé cálido.
+class _Flame extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const _Flame({required this.width, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(width * 0.3),
+            bottom: Radius.circular(width),
+          ),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFFF59D),
+              Color(0xFFFFB74D),
+              Color(0xFFFF7043),
+              Color(0x00FF7043),
+            ],
+            stops: [0, 0.35, 0.7, 1],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFFB74D).withValues(alpha: 0.6),
+              blurRadius: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

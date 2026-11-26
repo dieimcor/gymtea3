@@ -1,6 +1,6 @@
 # NeuroGym — Estado de Progreso del MVP
 
-> **Última actualización:** 2026-11-09
+> **Última actualización:** 2026-11-25
 > **Handoff para retomar:** ver `HANDOFF.md`
 > **Referencia de diseño:** ver `CONTEXT.md` para especificaciones completas
 
@@ -14,8 +14,10 @@
 | **2** | Auth RUT + Home + Perfil | ✅ Completada | 2026-05-07 |
 | **3** | Ejercicios del Manual + Sesión 3 Fases | ⚠️ Reemplazada por la Fase 4 | 2026-05-08 |
 | **4** | Mapa de Cráteres + Rutinas randomizadas | ✅ Completada | 2026-11-09 |
-| **5** | Minijuegos | ⬜ Pendiente | — |
-| **6** | Offline-First (SQLite) + Polish | ⬜ Pendiente | — |
+| **4.1** | Animaciones, recompensa y viaje entre cometas | ✅ Completada | 2026-11-25 |
+| **4.2** | Rutas de entrenamiento (3 dificultades elegibles) | ✅ Completada | 2026-11-26 |
+| **5** | Minijuegos | ⏸ En pausa (decisión del usuario) | — |
+| **6** | Offline-First (SQLite) + Polish | ⏸ En pausa (decisión del usuario) | — |
 
 ---
 
@@ -120,17 +122,18 @@ retiró la sesión de 3 fases y la configuración de tiempos.
 - **Sorteo sin repetición** entre cráteres, persistido en disco.
 - **Pop-up de nivel** (estilo Mario Party) con los ejercicios sorteados.
 - **"Califica tu progreso":** desempeño, cansancio y motivación, 1 a 5
-  estrellas, al terminar el cráter.
+  estrellas, al terminar el cráter. *(Reemplazado en la tanda de
+  animaciones por "¿Cómo le fue?" por ejercicio; ver abajo.)*
 - **Panel de progreso** en el mapa: cráteres conquistados, ejercicios,
   tiempo y sesiones (persistidos).
-- **Imágenes de ejercicios:** todas placeholder por ahora; las
-  ilustraciones definitivas quedan para una versión posterior.
+- **Imágenes de ejercicios:** todas placeholder por ahora (desde
+  2026-11-25 reemplazado por el espacio reservado `ExerciseMediaSlot`).
 - **Perfilamiento y evaluación fuera de la UI.** El código queda en el
   repo, sin uso, para retomarlo con el dashboard del psicopedagogo.
 
 ### Archivos nuevos
 `difficulty.dart` · `routine_model.dart` · `level_progress_service.dart` ·
-`crater_map_screen.dart` · `rating_screen.dart` · `minigames_screen.dart` ·
+`crater_map_screen.dart` · `rating_screen.dart` (eliminado después) · `minigames_screen.dart` ·
 `crater_node.dart` · `crater_preview_dialog.dart` · `exercise_image.dart` ·
 `progress_panel.dart` · `test/routine_test.dart` · `test/crater_map_test.dart`
 
@@ -145,7 +148,58 @@ verificado en emulador (Pixel 9a).
 
 ---
 
-## Fase 5 — ⬜ Pendiente
+## Fase 4.1 — Animaciones, recompensa y viaje entre cometas — ✅ Completada (2026-11-25)
+
+- **Mapa animado:** la barra se llena, los números cuentan, el cráter
+  recién conquistado salta con destellos y el disponible late.
+- **Sesión:** vuelven los controles anterior · pausa · siguiente
+  (`session_controls.dart`); cada serie parte con **5 s de "¡Prepárate!"**
+  (anillo que se llena alrededor del botón) y arranca sola.
+- **"¿Cómo le fue?"** tras la última serie de **cada ejercicio**, 1 a 3
+  estrellas (`how_did_it_go_sheet.dart`, `ExerciseRating`). Se guarda en
+  `ProgressModel.calificaciones` (exerciseId → 1..3);
+  `ProgressProvider.averageRatingFor(id)` para el resumen futuro. Se
+  eliminó `rating_screen.dart` ("Califica tu progreso").
+- **Recompensa solo al conquistar el cometa** (sus 4 cráteres):
+  `CometRewardScreen` (`/rewards/comet`) con aviso dinámico al padre y el
+  nombre del niño (`reward_messages.dart`).
+- **Viaje al siguiente cometa** (`CometTravel`) y **un tema por vuelta**
+  (`CometTheme`: tono + halo sobre el mismo sprite).
+- Transiciones suaves y rebote al tocar (`BouncyTap`), sin dependencias
+  nuevas.
+
+Flujo: mapa → pop-up → sesión (prep 5s → serie → descanso; "¿Cómo le
+fue?" tras cada ejercicio) → [recompensa si cerró el cometa → viaje] → mapa.
+
+Robustez: si falla el guardado al terminar, la sesión no queda bloqueada
+(SnackBar "Reintentar", sin duplicar historial); `ProgressModel.fromJson`
+lee tanto el formato de `toJson()` como el de `toMap()` (SQLite); el mapa
+ignora toques mientras sincroniza o viaja; los 4 cráteres caben en 360×640.
+
+### Estado
+`flutter analyze`: 4 info preexistentes, 0 errores, 0 warnings ·
+`flutter test`: 88 casos en verde (6 archivos).
+
+---
+
+## Fase 4.2 — Rutas de entrenamiento — ✅ Completada (2026-11-26)
+
+- Elección de **ruta** al inicio (Explorador / Astronauta / Comandante) con
+  el arte del Cuestionario, despegue animado y cambio desde Perfil.
+- Series de 30 / 45 / 60 s según la ruta; Comandante suma un ejercicio por
+  cráter; los descansos y el crecimiento 3 → 4 → 5 por cráter se mantienen.
+- Equipo por ejercicio (`Equipo`) con reemplazos de casa y juguetes; el
+  catálogo se filtra por ruta.
+- Planetas propios por ruta; avance guardado por ruta.
+- Tablero "vivo": entrada animada, saludo al padre, intro "¡A entrenar
+  juntos!"; respeto de "reducir animaciones".
+- `flutter test`: 120 casos en verde (9 archivos).
+
+---
+
+## Fase 5 — ⏸ En pausa
+
+> En pausa por decisión del usuario (2026-11-25).
 
 - Minijuegos (Higiene, Orden, Autonomía, Alimentación)
 - Al menos 2-3 minijuegos funcionales tipo quiz
@@ -154,7 +208,10 @@ verificado en emulador (Pixel 9a).
 
 ---
 
-## Fase 6 — ⬜ Pendiente
+## Fase 6 — ⏸ En pausa
+
+> En pausa por decisión del usuario (2026-11-25). El polish de animaciones
+> ya se adelantó en la Fase 4.1.
 
 - SQLite con `database_helper.dart`, `exercise_local_ds.dart`, `progress_local_ds.dart`
 - Repositorios usan datasources locales como fuente primaria
@@ -171,14 +228,18 @@ lib/core/constants/app_constants.dart
 lib/core/errors/exceptions.dart
 lib/core/network/api_client.dart
 lib/core/theme/app_theme.dart
+lib/core/theme/comet_theme.dart
 lib/data/datasources/local/exercise_local_ds.dart
 lib/data/datasources/remote/exercise_remote_ds.dart
 lib/data/models/child_model.dart
 lib/data/models/difficulty.dart
 lib/data/models/evaluation_model.dart
 lib/data/models/exercise_model.dart
+lib/data/models/exercise_rating.dart
 lib/data/models/progress_model.dart
+lib/data/models/reward_messages.dart
 lib/data/models/routine_model.dart
+lib/data/models/session_step.dart
 lib/data/models/user_model.dart
 lib/data/repositories/auth_repository.dart
 lib/data/repositories/exercise_repository.dart
@@ -188,34 +249,43 @@ lib/data/services/auth_service.dart
 lib/data/services/level_progress_service.dart
 lib/data/services/storage_service.dart
 lib/main.dart
+lib/presentation/animations/comet_travel.dart
+lib/presentation/animations/confetti.dart
 lib/presentation/providers/auth_provider.dart
 lib/presentation/providers/exercise_provider.dart
 lib/presentation/providers/progress_provider.dart
 lib/presentation/screens/auth/login_screen.dart
 lib/presentation/screens/exercises/exercise_session_screen.dart
-lib/presentation/screens/exercises/rating_screen.dart
 lib/presentation/screens/home/crater_map_screen.dart
 lib/presentation/screens/minigames/minigames_screen.dart
 lib/presentation/screens/profile/profile_screen.dart
+lib/presentation/screens/rewards/comet_reward_screen.dart
 lib/presentation/screens/splash/splash_screen.dart
+lib/presentation/widgets/bouncy_tap.dart
 lib/presentation/widgets/crater_node.dart
 lib/presentation/widgets/crater_preview_dialog.dart
-lib/presentation/widgets/exercise_image.dart
+lib/presentation/widgets/exercise_media_slot.dart
 lib/presentation/widgets/fondo_app.dart
+lib/presentation/widgets/how_did_it_go_sheet.dart
 lib/presentation/widgets/progress_panel.dart
 lib/presentation/widgets/rut_input_field.dart
+lib/presentation/widgets/session_controls.dart
 lib/presentation/widgets/session_timer_widget.dart
 lib/utils/formatters.dart
 lib/utils/rut_validator.dart
+test/comet_theme_test.dart
 test/crater_map_test.dart
+test/progress_model_test.dart
+test/reward_test.dart
 test/routine_test.dart
+test/session_test.dart
 ```
 
 ## Notas Técnicas
 - **Package name:** `gymtea3` (en pubspec.yaml)
 - **Dart SDK:** `^3.5.0` (instalado: 3.9.2)
 - **Flutter analyze:** 4 info, 0 errores
-- **Tests:** 25 casos (`test/routine_test.dart`, `test/crater_map_test.dart`)
+- **Tests:** 120 casos en 9 archivos de `test/` (incluye `route_flow_test.dart` y `training_route_test.dart`)
 - **Assets:** `recursos/` (material fuente, 271 MB) está en `.gitignore`
 - **Firebase:** Eliminado de dependencias activas, comentado en pubspec
 - **Legacy backup:** `screens_legacy_bak/` y `models_legacy_bak/` en raíz del proyecto (fuera de `lib/`)

@@ -16,8 +16,13 @@ class AppConstants {
   // el padre ya no elige duraciones, las define la dificultad del cráter.
   // ------------------------------------------------------------
 
-  /// Duración de cada serie de un ejercicio (1 minuto).
+  /// Duración por defecto de una serie (1 minuto). La real depende de la
+  /// ruta elegida (`TrainingRoute.seriesSeconds`: 30 / 45 / 60 s).
   static const int exerciseSeconds = 60;
+
+  /// Preparación antes de cada serie ("¡Prepárate!"). Los descansos no la
+  /// tienen: arrancan solos.
+  static const int prepSeconds = 5;
 
   /// Series por ejercicio en todas las dificultades.
   static const int seriesPerExercise = 2;
@@ -39,7 +44,15 @@ class AppConstants {
   ///
   /// Multiplo de [initialCraterCount]: el cometa muestra 4 cráteres por
   /// tanda, asi que con 8 niveles quedan dos tandas completas.
-  static const int totalCraterCount = 8;
+  static const int totalCraterCount = 16;
+
+  /// Cráteres de cada cometa: dos caras de [initialCraterCount]. Al
+  /// terminar la primera cara el cometa "da la vuelta" (ver `CometTurn`);
+  /// al terminar la segunda se viaja al siguiente cometa (`CometTravel`).
+  static const int cratersPerComet = 8;
+
+  /// Caras de cada cometa.
+  static const int facesPerComet = cratersPerComet ~/ initialCraterCount;
 
   /// Nivel mínimo, siempre desbloqueado.
   static const int minProgressionLevel = 1;
@@ -61,10 +74,15 @@ class AppConstants {
   static const String refreshTokenKey = 'refresh_token';
   static const String userDataKey = 'user_data';
 
-  /// Niveles completados al menos una vez (CSV de enteros).
+  /// Ruta de entrenamiento elegida (`TrainingRoute.name`).
+  static const String trainingRouteKey = 'training_route';
+
+  /// Niveles completados al menos una vez. Se guarda por ruta: la clave
+  /// real lleva el sufijo `_<ruta>`.
   static const String completedLevelsKey = 'completed_levels';
 
-  /// Ids de ejercicios ya sorteados en la ronda actual (CSV).
+  /// Ids de ejercicios ya sorteados en la ronda actual (por ruta, con
+  /// sufijo `_<ruta>`).
   static const String usedExerciseIdsKey = 'used_exercise_ids';
 
   // Acumulados de entrenamiento (sobreviven al reinicio de la app).

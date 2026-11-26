@@ -1,24 +1,36 @@
-# Ilustraciones de ejercicios
+# Recursos de ejercicios
 
-Esta carpeta está vacía a propósito: por ahora **todos los ejercicios
-muestran un placeholder** con su nombre. Las ilustraciones definitivas
-entran en una versión posterior.
+Esta carpeta está vacía a propósito: las gráficas, GIFs y videos de los
+ejercicios **se están diseñando**. Mientras tanto, cada ejercicio muestra
+solo un **espacio reservado** (`ExerciseMediaSlot`, proporción 4:3) con
+el nombre del ejercicio.
 
-## Cómo agregar una
+## Cómo poner un recurso cuando esté listo
 
-Deja el PNG con el **id del ejercicio** como nombre de archivo:
+1. Deja el archivo aquí, idealmente con el **id del ejercicio** como
+   nombre: `rd-1.gif`, `rd-1.png`, `rd-1.mp4`…
+2. En `lib/data/repositories/exercise_repository.dart`, agrega `media:`
+   a ese ejercicio:
 
+```dart
+ExerciseModel(
+  id: 'rd-1',
+  // ...
+  media: ExerciseMedia.gif('assets/images/ejercicios/rd-1.gif'),
+),
 ```
-assets/images/ejercicios/<id>.png
-```
 
-Por ejemplo, para el ejercicio `rd-1` ("Pararse y sentarse de un banco"),
-el archivo va como `rd-1.png`.
+Variantes: `ExerciseMedia.imagen(...)`, `ExerciseMedia.gif(...)`,
+`ExerciseMedia.video(...)`, o una URL `https://...` en vez de un asset.
 
-No hay que tocar código ni `pubspec.yaml`: `ExerciseModel.imagenAsset`
-apunta por defecto a esa ruta, y `ExerciseImage` cae en el placeholder
-solo mientras el archivo no exista. Los ids están en
-`lib/data/repositories/exercise_repository.dart`.
+El recurso aparece en el mismo espacio de la sesión y del pop-up del
+cráter, sin tocar pantallas ni `pubspec.yaml` (esta carpeta ya está
+declarada como assets). Un formato 4:3 llena el espacio sin recortes.
 
-> Este README existe para que la carpeta no quede vacía, porque
-> `pubspec.yaml` la declara como directorio de assets.
+> **Video:** hoy el espacio queda reservado con un ícono de reproducción.
+> Para reproducirlo hay que sumar un reproductor (p. ej. `video_player`)
+> en `exercise_media_slot.dart`.
+
+Los ids están en `lib/data/repositories/exercise_repository.dart`. Hay un
+test (`routine_test.dart`) que falla si algún ejercicio ya trae `media`:
+cuando asignes el primero, actualiza ese test.

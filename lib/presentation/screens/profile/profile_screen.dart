@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
+import 'package:gymtea3/data/models/training_route.dart';
 import 'package:gymtea3/presentation/providers/auth_provider.dart';
 import 'package:gymtea3/presentation/providers/exercise_provider.dart';
+import 'package:gymtea3/presentation/widgets/bouncy_tap.dart';
 
 /// Pantalla de Perfil — muestra datos del padre e hijo, cerrar sesión
 class ProfileScreen extends StatelessWidget {
@@ -23,8 +25,12 @@ class ProfileScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 20),
 
-            // Avatar del padre
-            Container(
+            // Avatar del padre (entra con un rebote)
+            _entrance(
+              durationMs: 900,
+              curve: Curves.elasticOut,
+              scaleFrom: 0.4,
+              child: Container(
               width: 90,
               height: 90,
               decoration: BoxDecoration(
@@ -43,6 +49,7 @@ class ProfileScreen extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
+            ),
             ),
 
             const SizedBox(height: 16),
@@ -88,7 +95,7 @@ class ProfileScreen extends StatelessWidget {
                 label: 'Rol',
                 value: _formatRole(user?.rol),
               ),
-            ]),
+            ], delayMs: 150),
 
             const SizedBox(height: 24),
 
@@ -121,7 +128,7 @@ class ProfileScreen extends StatelessWidget {
                   label: 'Cráter disponible',
                   value: '${exerciseProvider.highestUnlockedLevel}',
                 ),
-              ])
+              ], delayMs: 300)
             else
               Container(
                 padding: const EdgeInsets.all(20),
@@ -162,19 +169,31 @@ class ProfileScreen extends StatelessWidget {
                 label: 'Auspicio',
                 value: 'VerdeDigital',
               ),
-            ]),
+            ], delayMs: 450),
+
+            const SizedBox(height: 24),
+
+            // Sección: Ruta de entrenamiento
+            _buildSectionTitle('Ruta de entrenamiento'),
+            const SizedBox(height: 12),
+            _entrance(
+              delayMs: 520,
+              child: _buildRouteCard(context, exerciseProvider.route),
+            ),
 
             const SizedBox(height: 32),
 
             // Reiniciar el avance del mapa de cráteres
-            SizedBox(
+            BouncyTap(
+              pressedScale: 0.95,
+              child: SizedBox(
               width: double.infinity,
               height: 50,
               child: OutlinedButton.icon(
                 onPressed: () => _confirmResetProgress(context),
                 icon: const Icon(Icons.restart_alt_rounded),
                 label: const Text(
-                  'Reiniciar avance',
+                  'Reiniciar mapa de esta ruta',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 style: OutlinedButton.styleFrom(
@@ -189,11 +208,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
+            ),
 
             const SizedBox(height: 12),
 
             // Botón cerrar sesión
-            SizedBox(
+            BouncyTap(
+              pressedScale: 0.95,
+              child: SizedBox(
               width: double.infinity,
               height: 50,
               child: OutlinedButton.icon(
@@ -211,6 +233,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
             ),
 
             const SizedBox(height: 40),
@@ -231,8 +254,11 @@ class ProfileScreen extends StatelessWidget {
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'Todos los cráteres volverán a bloquearse y los ejercicios ya '
-          'sorteados podrán repetirse.',
+          'Solo se reinicia el mapa de la ruta '
+          '${context.read<ExerciseProvider>().route.label}: sus cráteres '
+          'vuelven a empezar y los ejercicios ya sorteados podrán '
+          'repetirse. Los ejercicios, minutos y sesiones que llevan juntos '
+          'se mantienen.',
           style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
         ),
         actions: [
@@ -256,6 +282,72 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /// Ruta actual (ícono + nombre) con la acción "Cambiar ruta".
+  Widget _buildRouteCard(BuildContext context, TrainingRoute route) {
+    return BouncyTap(
+      pressedScale: 0.97,
+      child: Material(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.pushNamed(
+            context,
+            '/route',
+            arguments: const {'changing': true},
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: route.color.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(route.icon, size: 18, color: route.color),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        route.label,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        route.tagline,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textLight.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'Cambiar ruta',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: route.color,
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: route.color),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -271,7 +363,39 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(List<_InfoRow> rows) {
+  /// Entrada suave (fundido + subida + escala); el retraso se simula con
+  /// [Interval] para no usar timers.
+  static Widget _entrance({
+    required Widget child,
+    int delayMs = 0,
+    int durationMs = 550,
+    Curve curve = Curves.easeOutCubic,
+    double scaleFrom = 0.96,
+  }) {
+    final total = delayMs + durationMs;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(delayMs / total, 1, curve: curve),
+      builder: (context, v, child) => Opacity(
+        opacity: v.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 18),
+          child: Transform.scale(
+            scale: scaleFrom + (1 - scaleFrom) * v,
+            child: child,
+          ),
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildInfoCard(List<_InfoRow> rows, {int delayMs = 0}) {
+    return _entrance(delayMs: delayMs, child: _infoCardBody(rows));
+  }
+
+  Widget _infoCardBody(List<_InfoRow> rows) {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,

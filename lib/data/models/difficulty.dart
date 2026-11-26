@@ -56,11 +56,11 @@ enum Dificultad {
     return work + rests;
   }
 
-  /// Dificultad asignada a un nivel/cráter.
-  /// Niveles 1-2 → fácil · 3-5 → medio · 6+ → difícil.
+  /// Dificultad asignada a un nivel/cráter (16 por ruta).
+  /// Niveles 1-4 → fácil · 5-10 → medio · 11+ → difícil.
   static Dificultad forLevel(int level) {
-    if (level <= 2) return Dificultad.facil;
-    if (level <= 5) return Dificultad.medio;
+    if (level <= 4) return Dificultad.facil;
+    if (level <= 10) return Dificultad.medio;
     return Dificultad.dificil;
   }
 

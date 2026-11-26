@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/presentation/providers/auth_provider.dart';
+import 'package:gymtea3/presentation/providers/exercise_provider.dart';
 
 /// Splash Screen — verifica sesión y redirige
 class SplashScreen extends StatefulWidget {
@@ -40,12 +41,19 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     final authProvider = context.read<AuthProvider>();
+    final exerciseProvider = context.read<ExerciseProvider>();
     final hasSession = await authProvider.checkSession();
 
     if (!mounted) return;
 
     if (hasSession) {
-      Navigator.pushReplacementNamed(context, '/home');
+      // Si todavía no eligió ruta de entrenamiento, se la pedimos.
+      final route = await exerciseProvider.loadSelectedRoute();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        route != null ? '/home' : '/route',
+      );
     } else {
       Navigator.pushReplacementNamed(context, '/login');
     }
@@ -55,6 +63,34 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _pulseController.dispose();
     super.dispose();
+  }
+
+  /// Entrada suave (fundido + subida + escala) con un retraso simulado
+  /// mediante [Interval]; [TweenAnimationBuilder] se libera solo.
+  Widget _splashIn({
+    required Widget child,
+    int delayMs = 0,
+    int durationMs = 600,
+    Curve curve = Curves.easeOutCubic,
+    double scaleFrom = 0.92,
+  }) {
+    final total = delayMs + durationMs;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(delayMs / total, 1, curve: curve),
+      builder: (context, v, child) => Opacity(
+        opacity: v.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 16),
+          child: Transform.scale(
+            scale: scaleFrom + (1 - scaleFrom) * v,
+            child: child,
+          ),
+        ),
+      ),
+      child: child,
+    );
   }
 
   @override
@@ -79,8 +115,13 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo con animación de pulso
-              AnimatedBuilder(
+              // Logo: aparece con un rebote y luego late suavemente
+              _splashIn(
+                delayMs: 0,
+                durationMs: 900,
+                curve: Curves.elasticOut,
+                scaleFrom: 0.3,
+                child: AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) {
                   return Transform.scale(
@@ -116,31 +157,38 @@ class _SplashScreenState extends State<SplashScreen>
                     },
                   ),
                 ),
+                ),
               ),
 
               const SizedBox(height: 40),
 
               // Nombre de la app
-              const Text(
-                'NeuroGym',
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 2,
+              _splashIn(
+                delayMs: 350,
+                child: const Text(
+                  'NeuroGym',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 2,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 8),
 
               // Subtítulo
-              Text(
-                'Fuerza y Juegos',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppTheme.textLight.withValues(alpha: 0.7),
-                  letterSpacing: 4,
-                  fontWeight: FontWeight.w300,
+              _splashIn(
+                delayMs: 550,
+                child: Text(
+                  'Fuerza y Juegos',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.textLight.withValues(alpha: 0.7),
+                    letterSpacing: 4,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
               ),
 

@@ -91,6 +91,7 @@ lib/
 ├── core/
 │   ├── constants/app_constants.dart   → URLs API, tiempos fijos, keys
 │   ├── theme/app_theme.dart          → ThemeData dark + colores por categoría
+│   ├── theme/comet_theme.dart        → Tono + halo del cometa por vuelta (CometTheme)
 │   ├── network/api_client.dart       → HTTP client centralizado con JWT
 │   └── errors/exceptions.dart        → AuthException, NetworkException, etc.
 ├── data/
@@ -101,7 +102,10 @@ lib/
 │   │   ├── difficulty.dart           → Dificultad: ejercicios, series, descanso
 │   │   ├── exercise_model.dart       → Ejercicio + categoría + dificultad + imagen
 │   │   ├── routine_model.dart        → Rutina plana de un cráter
-│   │   └── progress_model.dart       → Progreso + calificación + flag sync
+│   │   ├── progress_model.dart       → Progreso + calificaciones por ejercicio + flag sync
+│   │   ├── exercise_rating.dart      → "¿Cómo le fue?": 1 a 3 estrellas
+│   │   ├── session_step.dart         → Pasos planos de la sesión (prep · serie · descanso)
+│   │   └── reward_messages.dart      → Avisos al padre de la recompensa del cometa
 │   ├── repositories/
 │   │   ├── auth_repository.dart      → Login RUT + JWT + session
 │   │   ├── exercise_repository.dart  → Pools por dificultad + sorteo aleatorio
@@ -119,8 +123,8 @@ lib/
 │   │   ├── auth/login_screen.dart
 │   │   ├── home/crater_map_screen.dart     → Pantalla principal (cráteres)
 │   │   ├── exercises/
-│   │   │   ├── exercise_session_screen.dart → Rutina plana + timers
-│   │   │   └── rating_screen.dart           → Califica tu progreso + resumen
+│   │   │   └── exercise_session_screen.dart → Rutina plana + prep 5s + timers
+│   │   ├── rewards/comet_reward_screen.dart → Recompensa al conquistar el cometa
 │   │   ├── minigames/minigames_screen.dart
 │   │   └── profile/profile_screen.dart
 │   ├── widgets/
@@ -128,19 +132,25 @@ lib/
 │   │   ├── rut_input_field.dart
 │   │   ├── crater_node.dart          → Nodo de cráter del mapa
 │   │   ├── crater_preview_dialog.dart → Pop-up de ejercicios del nivel
-│   │   ├── exercise_image.dart       → Imagen con placeholder por nombre
-│   │   └── session_timer_widget.dart → Timer circular (serie / descanso)
+│   │   ├── exercise_media_slot.dart  → Espacio reservado del recurso (imagen/GIF/video)
+│   │   ├── session_timer_widget.dart → Timer circular (serie / descanso)
+│   │   ├── session_controls.dart     → Anterior · pausa (anillo de prep) · siguiente
+│   │   ├── how_did_it_go_sheet.dart  → Hoja "¿Cómo le fue?" tras cada ejercicio
+│   │   └── bouncy_tap.dart           → Rebote al tocar
+│   ├── animations/
+│   │   ├── comet_travel.dart         → Viaje animado al siguiente cometa
+│   │   └── confetti.dart             → Confeti de la recompensa
 │   └── providers/
 │       ├── auth_provider.dart        → Estado login/logout/sesión
 │       ├── exercise_provider.dart    → Mapa de cráteres + sorteo de rutinas
-│       └── progress_provider.dart    → Registro + calificación + sync
+│       └── progress_provider.dart    → Registro + calificaciones + averageRatingFor + sync
 ├── utils/
 │   ├── rut_validator.dart            → Validación RUT módulo 11
 │   └── formatters.dart               → Fechas, duración, categorías
 assets/images/
 ├── craters/      → fondo_espacio, crater_base, crater_1..7
 ├── mascota/      → alien, alien_calificacion
-└── ejercicios/   → <id>.png (opcional; si falta → placeholder)
+└── ejercicios/   → recursos de ejercicios (hoy vacía: solo espacio reservado)
 ```
 
 ---
@@ -160,22 +170,88 @@ La pantalla principal es el mapa: **un cráter por nivel**.
   sobre un solo cometa: al conquistar los 4, los mismos cráteres se renumeran
   con los niveles 5-8.
 - El avance se guarda local (`SharedPreferences`), sin backend ni evaluación.
+- **Tablero vivo:** al aparecer, el cometa entra con fade + zoom y el panel
+  baja; el aviso del mapa es un mensaje cálido para el padre que va
+  cambiando ("Hoy Tomás y tú van por el cráter 3…"). El panel muestra la
+  ruta y el planeta actual.
+- **Progreso animado** (`ProgressPanel`, `CraterMarker`): la barra se llena,
+  los números cuentan, el cráter recién conquistado salta con destellos y el
+  disponible late. Mientras el mapa sincroniza o viaja, ignora los toques.
+
+### Rutas de entrenamiento (se eligen al inicio)
+
+Después del login, si no hay ruta guardada, el padre elige una de **3
+rutas** en `RouteSelectionScreen` (`/route`): el marciano con portapapeles
+del arte "Cuestionario" (`mascota/alien_portapapeles.png`) pregunta
+"¿Qué tan lejos viajamos con {niño}?" y cada ruta es una tarjeta con barras
+de nivel al estilo del cuestionario. Al confirmar se reproduce el
+**despegue** (`LaunchScreen`, `/launch`: 3·2·1, el marciano sube, estrellas
+a velocidad y llega el primer planeta) y recién ahí aparece el tablero.
+Se puede cambiar desde **Perfil → Cambiar ruta**; cada ruta **guarda su
+propio avance** (claves `completed_levels_<ruta>` / `used_exercise_ids_<ruta>`);
+los acumulados del niño son globales.
+
+| Ruta (`TrainingRoute`) | Serie | Ejercicios por cráter | Equipo | Planetas |
+|---|---|---|---|---|
+| Explorador | 30 s | 3 → 4 → 5 | Solo el cuerpo y una silla (`Equipo.libre`) | Limón · Menta |
+| Astronauta | 45 s | 3 → 4 → 5 | + cosas de la casa: botella, pelota, toalla (`basico`) | Lavanda · Frutilla |
+| Comandante | 60 s | **4 → 5 → 6** (+1) | + equipo especial, con reemplazo seguro (`especial`) | Océano · Volcán |
+
+La cantidad de ejercicios sigue creciendo con los cráteres y los descansos
+(20/25/30 s) no cambian entre rutas.
+
+**Equipo pensado para niños.** Cada ejercicio tiene `equipo`, `implemento`
+(lo que pide el manual) y `reemplazo` (juguete o cosa de la casa: botella
+de agua chica, pelota o cojín, toalla que sostiene el padre, silla firme,
+mochila con libros livianos…). La sesión muestra "Usa: …" en "Así se hace"
+y el pop-up lista lo que **necesitan** para el cráter. Los ejercicios con
+carga o poco recomendables para niños (hip thrust con carga, peso muerto
+sumo, rueda abdominal, dominadas, TRX) quedan solo en Comandante y siempre
+con una alternativa suave. El catálogo de una ruta se filtra por equipo y,
+si queda corto, se completa con ejercicios permitidos de las dificultades
+vecinas (`ExerciseRepository.poolFor`).
 
 ### Dificultad por nivel
 
-| Niveles | Dificultad | Ejercicios | Series | Trabajo | Descanso |
-|---------|-----------|-----------|--------|---------|----------|
-| 1-2 | Fácil | 3 | 2 | 60 s | 20 s |
-| 3-5 | Medio | 4 | 2 | 60 s | 25 s |
-| 6-8 | Difícil | 5 | 2 | 60 s | 30 s |
+| Niveles | Dificultad | Ejercicios (Comandante) | Series | Descanso |
+|---------|-----------|-----------|--------|----------|
+| 1-2 | Fácil | 3 (4) | 2 | 20 s |
+| 3-5 | Medio | 4 (5) | 2 | 25 s |
+| 6-8 | Difícil | 5 (6) | 2 | 30 s |
 
-El descanso es **incremental según la dificultad** y aplica tanto entre series
-como entre ejercicios. Los valores son fijos: el padre ya no los elige.
+La duración de la serie la define la ruta (30/45/60 s). El descanso es
+**incremental según la dificultad** y aplica tanto entre series como entre
+ejercicios.
 
 ### Rutina (`RoutineModel`)
 
-Lista plana de bloques: `serie (60 s) → descanso → serie → …`, sin descanso
-final. La secuencia la arma `ExerciseSessionScreen`.
+Lista plana de bloques: `serie (30/45/60 s según la ruta) → descanso → serie → …`, sin descanso
+final. La secuencia la arma `ExerciseSessionScreen` con `SessionPlan`
+(`session_step.dart`).
+
+### Sesión: preparación y controles
+
+- **Preparación de 5 s** (`AppConstants.prepSeconds`) antes de **cada serie**
+  (los descansos no la tienen). El "¡Prepárate!" vive **solo alrededor del
+  botón central**: un anillo dorado se llena y el botón respira. Al
+  completarse, la serie arranca sola.
+- **Diseño de una serie:** lo protagonista es el ejercicio. Arriba el
+  nombre; al centro el **recurso grande** (`ExerciseMediaSlot`, 4:3, todo el
+  ancho útil hasta 360 px); el **contador** es una insignia chica en la
+  **esquina superior derecha del recurso** (`SessionTimerWidget(compact:
+  true)`) que aparece con un "pop" al terminar la preparación; abajo la
+  tarjeta **"Así se hace"** con 2-3 pasos simples (`ExerciseModel.pasos`,
+  escritos para leerlos en voz alta; si faltan se usa `descripcion`). La
+  tarjeta va destacada en dorado durante la preparación y se suaviza al
+  arrancar.
+- **Descanso:** mascota flotando y el anillo grande del contador al centro.
+- **Controles** (`SessionControls`), como los originales pero actualizados:
+  **anterior** (`skip_previous`) · círculo blanco grande con **pausa/play** ·
+  **siguiente** (`skip_next`). Pausar congela también la preparación.
+- Al terminar: se guarda el progreso (con las calificaciones) y
+  `completeLevel` devuelve `LevelCompletion`; si `cometCompleted`, se abre la
+  recompensa con `pushReplacementNamed`; si no, `pop` al mapa. Si el guardado
+  falla, un SnackBar ofrece "Reintentar" sin duplicar el historial.
 
 ### Sorteo aleatorio sin repetición
 
@@ -194,22 +270,57 @@ Al tocar un cráter se abre `CraterPreviewDialog` con los ejercicios que
 tocaron (imagen + nombre + categoría), la dificultad, los tiempos y la
 duración estimada. Botones: **Sortear** y **¡Comenzar!**.
 
-### Imágenes de ejercicios
+### Recurso visual de ejercicios (espacio reservado)
 
-Cada ejercicio tiene `imagenAsset`, por defecto
-`assets/images/ejercicios/<id>.png`. Si el PNG no existe, `ExerciseImage`
-muestra un **placeholder con el nombre** del ejercicio.
+Las gráficas, GIFs y videos de cada ejercicio **se están diseñando**. Por
+eso cada ejercicio muestra solo un **espacio reservado** (`ExerciseMediaSlot`,
+4:3; 200 px de ancho en la sesión y miniatura de 64 px en el pop-up) con un
+ícono y el nombre del ejercicio.
 
-**Hoy todos los ejercicios van con placeholder**: las ilustraciones
-definitivas entran en una versión posterior. Para incorporarlas basta
-dejar el PNG con el id del ejercicio como nombre, sin tocar código.
+Cuando un recurso esté listo se asigna en el catálogo
+(`exercise_repository.dart`) con el campo `media` de `ExerciseModel`:
 
-### Califica tu progreso
+```dart
+media: ExerciseMedia.gif('assets/images/ejercicios/rd-1.gif'),
+// o ExerciseMedia.imagen(...) / ExerciseMedia.video(...) / una URL https
+```
 
-Al terminar el cráter, antes del resumen, `RatingScreen` pide **1 a 5
-estrellas** en **desempeño**, **cansancio** y **motivación**. Se guarda junto
-al progreso local (`sincronizado = false`) para enviarse al backend cuando
-exista. Se puede saltar.
+y aparece en ese mismo espacio, sin tocar pantallas. Imagen y GIF se
+dibujan con `Image` (el GIF se anima solo). **Video:** el espacio queda
+reservado con un ícono de reproducción; falta sumar un reproductor
+(p. ej. `video_player`) cuando lleguen los videos. El JSON usa
+`"media": {"tipo": "gif", "ruta": "..."}` y sigue leyendo el formato
+antiguo `imagen_asset` / `imagen_url`.
+
+### "¿Cómo le fue?" por ejercicio
+
+Tras la **última serie de cada ejercicio**, `HowDidItGoSheet` le pregunta al
+padre cómo le fue **al niño**, con **1 a 3 estrellas** (`ExerciseRating`:
+le costó · bien · ¡excelente!). Se guarda por ejercicio en
+`ProgressModel.calificaciones` (`exerciseId → 1..3`) junto al progreso local
+(`sincronizado = false`); `ProgressProvider.averageRatingFor(id)` da el
+promedio para el resumen futuro. Se puede saltar. Reemplaza al antiguo
+"Califica tu progreso" (3 ejes × 5 estrellas), que se eliminó.
+
+### Recompensa del cometa y viaje
+
+La recompensa al niño llega **solo al conquistar los 4 cráteres de un
+cometa**, no en cada cráter: `CometRewardScreen` (`/rewards/comet`) muestra un
+aviso dinámico al padre con el nombre del niño ("¡Recompensa a tu hijo, lo
+logró!", un abrazo, chocar los cinco…). Al volver al mapa, `CometTravel`
+anima el viaje al siguiente cometa, que se pinta con su `CometTheme` (tono +
+halo sobre el mismo sprite) para que cada vuelta parezca un cometa distinto.
+
+- Avisos: `RewardMessages.forComet(nombre, …)` rota variantes (recompensa,
+  abrazo, chocar los cinco, decirle lo orgulloso/a que estás, preguntarle
+  qué ejercicio le gustó) con confeti (`ConfettiBurst`).
+- Temas: `CometTheme.forRound(i)` → Limón (arte original), Lavanda, Menta,
+  Frutilla, Océano (rotación de tono con `ColorFilter.matrix` + halo).
+- El mapa detecta que `roundIndex` cambió respecto del que mostraba y
+  reproduce `CometTravel` ("¡Rumbo al Cometa …!") antes de mostrar la nueva
+  tanda.
+- Transiciones de página suaves (`SoftPageTransitionsBuilder` en
+  `app_theme.dart`) y rebote al tocar (`BouncyTap`), sin dependencias nuevas.
 
 ### Categorías de ejercicios
 
@@ -345,7 +456,9 @@ El módulo interpreta la evaluación funcional y sugiere:
 Splash → ¿JWT válido?
   NO → Login (RUT + pass) → Mapa de Cráteres
   SÍ → Mapa de Cráteres
-          ├── Cráter N → Pop-up de ejercicios → Sesión → Califica tu progreso → Resumen
+          ├── Cráter N → Pop-up de ejercicios → Sesión (prep 5s → serie → descanso;
+          │      "¿Cómo le fue?" tras cada ejercicio) → [Recompensa si cerró el
+          │      cometa → viaje al siguiente] → Mapa
           ├── Minijuegos (icono superior)
           └── Perfil (icono superior) → Datos · Reiniciar avance · Cerrar sesión
 ```
@@ -382,14 +495,16 @@ Aplicados los cambios de `recursos/actualizacion24oct.txt`:
 |---------------|--------|
 | Menú de cráteres como pantalla principal | ✅ `CraterMapScreen` reemplaza al Home con bottom nav |
 | Sacar la configuración de tiempos (settings) | ✅ Tiempos fijos en `AppConstants` / `Dificultad` |
-| Imagen por ejercicio (placeholder de texto) | ✅ `ExerciseImage` + campo `imagenAsset` |
+| Recurso por ejercicio (espacio reservado) | ✅ `ExerciseMediaSlot` + campo `media` (imagen/GIF/video) |
 | Tiempos de 30 s → 1 minuto | ✅ `AppConstants.exerciseSeconds = 60` |
 | Descanso de 20 s entre ejercicios | ✅ Piso del nivel fácil |
 | Descansos incrementales por dificultad | ✅ 20 / 25 / 30 s |
 | Randomizar al elegir cráter, sin repetir | ✅ Pools + registro persistido |
 | Pop-up de ejercicios del nivel (Mario Party) | ✅ `CraterPreviewDialog` |
 | 3 / 4 / 5 ejercicios × 2 series | ✅ `Dificultad.exerciseCount` |
-| "Califica tu progreso" (1-5 estrellas × 3) | ✅ `RatingScreen` |
+| "¿Cómo le fue?" por ejercicio (1-3 estrellas) | ✅ `HowDidItGoSheet` + `ProgressModel.calificaciones` |
+| Recompensa solo al terminar el cometa + viaje | ✅ `CometRewardScreen` + `CometTravel` + `CometTheme` |
+| Controles anterior · pausa · siguiente + prep 5s | ✅ `SessionControls` |
 
 **Fuera de alcance por ahora:** "Matar al alien" (el alien queda solo como
 mascota), perfilamiento y evaluación previa del niño.
@@ -398,6 +513,7 @@ mascota), perfilamiento y evaluación previa del niño.
 
 - `session_model.dart` (sesión de 3 fases) → `routine_model.dart`
 - `home_screen.dart`, `level_map_screen.dart` → `crater_map_screen.dart`
+- `rating_screen.dart` ("Califica tu progreso", 3 ejes × 5 estrellas) → `how_did_it_go_sheet.dart`
 - `phase_indicator.dart`, `level_node.dart`, `exercise_card.dart`
 - Enum `FaseSesion` y el reparto activación/fortalecimiento/juego
 
@@ -413,8 +529,17 @@ shared_preferences: ^2.2.2
 ```
 
 ### Tests
-`test/routine_test.dart` cubre el mapeo nivel → dificultad, los tiempos y el
-sorteo sin repetición (incluido el caso de pool agotado).
+120 casos en verde (`flutter test`, 2026-11-26); `flutter analyze` deja solo
+las 4 info preexistentes.
+
+| Archivo | Casos | Cubre |
+|---|---|---|
+| `routine_test.dart` | 9 | Nivel → dificultad, tiempos, sorteo sin repetición |
+| `crater_map_test.dart` | 33 | Tandas, panel animado, viaje, bloqueo de toques, 360×640 |
+| `session_test.dart` | 14 | Plan con prep, controles, "¿Cómo le fue?", recompensa, reintento de guardado |
+| `reward_test.dart` | 12 | Avisos al padre con el nombre, confeti, pantalla de recompensa |
+| `comet_theme_test.dart` | 10 | Temas por vuelta, matriz de color, `CometTravel` |
+| `progress_model_test.dart` | 4 | `fromJson` ↔ `toJson` / `toMap`, calificaciones |
 
 ---
 

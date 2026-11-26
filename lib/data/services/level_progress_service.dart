@@ -1,8 +1,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gymtea3/core/constants/app_constants.dart';
+import 'package:gymtea3/data/models/training_route.dart';
 
 /// Persiste el avance del mapa de cráteres.
+///
+/// El avance y el registro de ejercicios sorteados se guardan **por ruta**
+/// ([route]): cambiar de ruta no borra lo hecho en las otras. Los
+/// acumulados de entrenamiento (ejercicios, tiempo, sesiones) son del
+/// niño, así que son globales.
 ///
 /// Es deliberadamente independiente de la evaluación funcional y del
 /// perfilamiento del niño: el desbloqueo depende solo de los cráteres
@@ -13,6 +19,29 @@ class LevelProgressService {
   Future<SharedPreferences> get _store async =>
       _prefs ??= await SharedPreferences.getInstance();
 
+  /// Ruta cuyo avance se lee y escribe.
+  TrainingRoute route = TrainingRoute.explorador;
+
+  String get _completedKey =>
+      '${AppConstants.completedLevelsKey}_${route.name}';
+  String get _usedKey => '${AppConstants.usedExerciseIdsKey}_${route.name}';
+
+  // ------------------------------------------------------------
+  // Ruta elegida
+  // ------------------------------------------------------------
+
+  /// Ruta elegida por el padre (`null` si todavía no elige).
+  Future<TrainingRoute?> getSelectedRoute() async {
+    final store = await _store;
+    return TrainingRoute.fromName(store.getString(AppConstants.trainingRouteKey));
+  }
+
+  Future<void> saveSelectedRoute(TrainingRoute value) async {
+    final store = await _store;
+    await store.setString(AppConstants.trainingRouteKey, value.name);
+    route = value;
+  }
+
   // ------------------------------------------------------------
   // Niveles completados
   // ------------------------------------------------------------
@@ -20,7 +49,7 @@ class LevelProgressService {
   /// Niveles (cráteres) completados al menos una vez.
   Future<Set<int>> getCompletedLevels() async {
     final store = await _store;
-    final raw = store.getStringList(AppConstants.completedLevelsKey) ?? const [];
+    final raw = store.getStringList(_completedKey) ?? const [];
     return raw.map(int.tryParse).whereType<int>().toSet();
   }
 
@@ -29,7 +58,7 @@ class LevelProgressService {
     final completed = await getCompletedLevels();
     completed.add(level);
     await store.setStringList(
-      AppConstants.completedLevelsKey,
+      _completedKey,
       completed.map((e) => e.toString()).toList(),
     );
   }
@@ -54,7 +83,7 @@ class LevelProgressService {
 
   Future<Set<String>> getUsedExerciseIds() async {
     final store = await _store;
-    return (store.getStringList(AppConstants.usedExerciseIdsKey) ?? const [])
+    return (store.getStringList(_usedKey) ?? const [])
         .toSet();
   }
 
@@ -62,7 +91,7 @@ class LevelProgressService {
     final store = await _store;
     final used = await getUsedExerciseIds();
     used.addAll(ids);
-    await store.setStringList(AppConstants.usedExerciseIdsKey, used.toList());
+    await store.setStringList(_usedKey, used.toList());
   }
 
   /// Quita ids del registro — se usa al re-sortear un cráter, para no
@@ -71,12 +100,12 @@ class LevelProgressService {
     final store = await _store;
     final used = await getUsedExerciseIds();
     used.removeAll(ids);
-    await store.setStringList(AppConstants.usedExerciseIdsKey, used.toList());
+    await store.setStringList(_usedKey, used.toList());
   }
 
   Future<void> resetUsedExerciseIds() async {
     final store = await _store;
-    await store.remove(AppConstants.usedExerciseIdsKey);
+    await store.remove(_usedKey);
   }
 
   // ------------------------------------------------------------
@@ -105,14 +134,12 @@ class LevelProgressService {
     );
   }
 
-  /// Borra todo el avance del mapa.
+  /// Borra el avance del mapa de la ruta actual. Los acumulados de
+  /// entrenamiento del niño (y el avance de las otras rutas) se conservan.
   Future<void> resetAll() async {
     final store = await _store;
-    await store.remove(AppConstants.completedLevelsKey);
-    await store.remove(AppConstants.usedExerciseIdsKey);
-    await store.remove(AppConstants.totalExercisesKey);
-    await store.remove(AppConstants.totalSecondsKey);
-    await store.remove(AppConstants.totalSessionsKey);
+    await store.remove(_completedKey);
+    await store.remove(_usedKey);
   }
 }
 

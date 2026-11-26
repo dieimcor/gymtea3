@@ -25,6 +25,18 @@ class AppTheme {
   static const Color categoryJL = Color(0xFF6A1B9A);  // Jalón
   static const Color categoryCR = Color(0xFFC62828);  // Core
 
+  /// Transición de páginas suave para toda la app.
+  static const PageTransitionsTheme softPageTransitions = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: SoftPageTransitionsBuilder(),
+      TargetPlatform.iOS: SoftPageTransitionsBuilder(),
+      TargetPlatform.macOS: SoftPageTransitionsBuilder(),
+      TargetPlatform.windows: SoftPageTransitionsBuilder(),
+      TargetPlatform.linux: SoftPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: SoftPageTransitionsBuilder(),
+    },
+  );
+
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
@@ -37,6 +49,8 @@ class AppTheme {
         background: backgroundDark,
       ),
       scaffoldBackgroundColor: backgroundDark,
+      // Transiciones suaves (fundido + escala) en todas las plataformas.
+      pageTransitionsTheme: softPageTransitions,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -80,6 +94,49 @@ class AppTheme {
           borderSide: const BorderSide(color: primaryGreen, width: 2),
         ),
         labelStyle: const TextStyle(color: textLight),
+      ),
+    );
+  }
+}
+
+/// Transición infantil y tranquila: la página nueva entra con un fundido,
+/// crece apenas (0.94 → 1) y sube unos pocos píxeles; la que queda atrás
+/// se atenúa levemente. Sin movimientos bruscos.
+class SoftPageTransitionsBuilder extends PageTransitionsBuilder {
+  const SoftPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final enter = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final exit = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: Curves.easeOut,
+    );
+
+    return FadeTransition(
+      opacity: Tween<double>(begin: 1, end: 0.6).animate(exit),
+      child: FadeTransition(
+        opacity: enter,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.03),
+            end: Offset.zero,
+          ).animate(enter),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.94, end: 1).animate(enter),
+            child: child,
+          ),
+        ),
       ),
     );
   }
