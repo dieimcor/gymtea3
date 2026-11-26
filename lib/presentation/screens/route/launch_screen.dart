@@ -225,13 +225,26 @@ class _LaunchScreenState extends State<LaunchScreen>
     final flicker = 0.85 + 0.15 * math.sin(t * 90);
     final flameHeight = (20 + 90 * ignition) * flicker;
 
+    // El fuego envuelve al marciano: un halo de llamas detrás que lo rodea
+    // y se estira en la cola, y lenguas delante de sus costados. Así no se
+    // ve como un efecto pegado bajo el sprite.
+    final fire = FireAura(
+      ignition: ignition,
+      tail: flameHeight,
+      time: t * 3.8,
+    );
+
     return Positioned(
       left: (size.width - alienSize) / 2 + rumble,
       top: top,
       width: alienSize,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      height: alienSize,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
+          Positioned.fill(
+            child: CustomPaint(painter: fire.behind()),
+          ),
           Image.asset(
             'assets/images/mascota/alien.png',
             width: alienSize,
@@ -243,7 +256,9 @@ class _LaunchScreenState extends State<LaunchScreen>
               size: 80,
             ),
           ),
-          _Flame(width: 34 + 10 * ignition, height: flameHeight),
+          Positioned.fill(
+            child: CustomPaint(painter: fire.front()),
+          ),
         ],
       ),
     );
@@ -398,43 +413,227 @@ class _MessageBlock extends StatelessWidget {
   }
 }
 
-/// Llama del despegue: una gota invertida con degradé cálido.
-class _Flame extends StatelessWidget {
-  final double width;
-  final double height;
+/// Fuego que envuelve al marciano al despegar. Se pinta en dos capas
+/// alrededor de su caja (el sprite va entre ambas):
+/// - [behind]: resplandor, una envoltura de llamas que lo rodea por
+///   completo y se estira hacia abajo en la cola, y lenguas que titilan;
+/// - [front]: un borde caliente en su mitad de abajo y lenguas que suben
+///   por sus costados, por delante del sprite.
+///
+/// [ignition] va de 0 (motor apenas encendido) a 1 (despegue), [tail] es
+/// el largo de la cola en px y [time] avanza en segundos para el titileo.
+class FireAura {
+  final double ignition;
+  final double tail;
+  final double time;
 
-  const _Flame({required this.width, required this.height});
+  const FireAura({
+    required this.ignition,
+    required this.tail,
+    required this.time,
+  });
+
+  CustomPainter behind() => _FireBehindPainter(this);
+  CustomPainter front() => _FireFrontPainter(this);
+
+  static const _white = Color(0xFFFFFDE7);
+  static const _yellow = Color(0xFFFFF59D);
+  static const _amber = Color(0xFFFFB74D);
+  static const _orange = Color(0xFFFF7043);
+
+  /// Envoltura en forma de gota: un círculo ondulado alrededor del
+  /// marciano que hacia abajo se angosta y se estira en la cola.
+  Path envelope(Size size, {double scale = 1, double phase = 0}) {
+    final c = Offset(size.width / 2, size.height * 0.52);
+    final r = size.width * 0.5 * (0.88 + 0.16 * ignition) * scale;
+    final length = (tail + size.height * 0.25) * scale;
+    final path = Path();
+    const n = 72;
+    for (var i = 0; i <= n; i++) {
+      final a = -math.pi / 2 + i / n * math.pi * 2;
+      final down = math.max(0.0, math.sin(a));
+      // Bordes que lamen: ondas que suben con el tiempo.
+      final wobble = 1 +
+          (0.05 + 0.04 * ignition) *
+              math.sin(a * 7 + time * 14 + phase) *
+              (0.4 + 0.6 * down);
+      final x =
+          c.dx + math.cos(a) * r * wobble * (1 - 0.55 * math.pow(down, 2.5));
+      final y = c.dy + math.sin(a) * r * wobble + length * math.pow(down, 4);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    return path..close();
+  }
+
+  /// Lengua de fuego: nace en [base] y apunta en [angle] (0 = abajo).
+  static Path lick(Offset base, double angle, double length, double width) {
+    final dir = Offset(math.sin(angle), math.cos(angle));
+    final perp = Offset(dir.dy, -dir.dx);
+    final tip = base + dir * length;
+    final l = base + perp * (width / 2);
+    final r = base - perp * (width / 2);
+    final lc = l + dir * (length * 0.55);
+    final rc = r + dir * (length * 0.55);
+    return Path()
+      ..moveTo(l.dx, l.dy)
+      ..quadraticBezierTo(lc.dx, lc.dy, tip.dx, tip.dy)
+      ..quadraticBezierTo(rc.dx, rc.dy, r.dx, r.dy)
+      ..arcToPoint(l, radius: Radius.circular(width / 2))
+      ..close();
+  }
+}
+
+class _FireBehindPainter extends CustomPainter {
+  final FireAura fire;
+  _FireBehindPainter(this.fire);
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(width * 0.3),
-            bottom: Radius.circular(width),
-          ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFF59D),
-              Color(0xFFFFB74D),
-              Color(0xFFFF7043),
-              Color(0x00FF7043),
-            ],
-            stops: [0, 0.35, 0.7, 1],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFFB74D).withValues(alpha: 0.6),
-              blurRadius: 24,
-            ),
-          ],
-        ),
+  void paint(Canvas canvas, Size size) {
+    final ign = fire.ignition;
+    final c = Offset(size.width / 2, size.height * 0.52);
+    final flicker = 0.9 + 0.1 * math.sin(fire.time * 40);
+
+    // Motor apenas encendido: solo una llamita bajo los pies.
+    final pilot = Paint()
+      ..color = FireAura._amber.withValues(alpha: 0.8 * flicker)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawPath(
+      FireAura.lick(
+        Offset(c.dx, size.height * 0.9),
+        0,
+        fire.tail * flicker * (1 - ign),
+        16,
       ),
+      pilot,
     );
+    if (ign <= 0.02) return;
+
+    // El envoltorio crece con el encendido (sin manchas antes).
+    final heat = math.pow(ign.clamp(0.0, 1.0), 2.5).toDouble();
+
+    // Resplandor amplio.
+    canvas.drawCircle(
+      c,
+      size.width * (0.62 + 0.25 * ign),
+      Paint()
+        ..color = FireAura._amber.withValues(alpha: 0.35 * heat * flicker)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
+    );
+
+    final outer = fire.envelope(size);
+    final vertical = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        FireAura._yellow.withValues(alpha: 0.45 * heat),
+        FireAura._amber.withValues(alpha: 0.75 * heat),
+        FireAura._orange.withValues(alpha: 0.85 * heat),
+        FireAura._orange.withValues(alpha: 0),
+      ],
+      stops: const [0, 0.4, 0.75, 1],
+    ).createShader(outer.getBounds());
+
+    // Capa externa difusa, capa media y núcleo blanco-amarillo.
+    canvas.drawPath(
+      outer,
+      Paint()
+        ..shader = vertical
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+    canvas.drawPath(
+      fire.envelope(size, scale: 0.86, phase: 2.1),
+      Paint()
+        ..shader = vertical
+        ..blendMode = BlendMode.plus,
+    );
+    canvas.drawPath(
+      fire.envelope(size, scale: 0.7, phase: 4.2),
+      Paint()
+        ..color = FireAura._white.withValues(alpha: 0.55 * heat)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+
+    // Lenguas que se desprenden de la cola y los costados.
+    if (ign <= 0) return;
+    for (var i = 0; i < 6; i++) {
+      final side = i.isEven ? 1.0 : -1.0;
+      final k = (i ~/ 2) / 2; // 0, 0.5, 1
+      final a = math.pi * (0.15 + 0.3 * k) * side;
+      final base = c +
+          Offset(math.sin(a), math.cos(a)) * (size.width * 0.42) +
+          Offset(0, size.height * 0.1 * k);
+      final len = (18 + fire.tail * 0.45) *
+          ign *
+          (0.7 + 0.3 * math.sin(fire.time * (11 + i * 3) + i));
+      canvas.drawPath(
+        FireAura.lick(base, -a * 0.5, len, 12 + 4 * k),
+        Paint()
+          ..color = (i < 2 ? FireAura._yellow : FireAura._amber)
+              .withValues(alpha: 0.7 * ign)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
   }
+
+  @override
+  bool shouldRepaint(_FireBehindPainter old) =>
+      old.fire.ignition != fire.ignition ||
+      old.fire.tail != fire.tail ||
+      old.fire.time != fire.time;
+}
+
+class _FireFrontPainter extends CustomPainter {
+  final FireAura fire;
+  _FireFrontPainter(this.fire);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ign = fire.ignition;
+    if (ign <= 0) return;
+    final c = Offset(size.width / 2, size.height * 0.52);
+    final r = size.width * 0.44;
+
+    // Borde caliente en la mitad de abajo: el fuego lo abraza.
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r),
+      math.pi * 0.05,
+      math.pi * 0.9,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..color = FireAura._amber.withValues(alpha: 0.55 * ign)
+        ..blendMode = BlendMode.plus
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    // Lenguas que suben por los costados, por delante del sprite.
+    for (var i = 0; i < 4; i++) {
+      final side = i.isEven ? 1.0 : -1.0;
+      final low = i < 2;
+      final a = math.pi * (low ? 0.3 : 0.45) * side;
+      final base = c + Offset(math.sin(a), math.cos(a)) * r;
+      final len = size.width *
+          (low ? 0.28 : 0.2) *
+          ign *
+          (0.65 + 0.35 * math.sin(fire.time * (13 + i * 4) + i * 1.7));
+      // Apuntan hacia arriba y afuera: suben pegadas al cuerpo.
+      final angle = math.pi - side * (low ? 0.5 : 0.25);
+      canvas.drawPath(
+        FireAura.lick(base, angle, len, 9),
+        Paint()
+          ..color = FireAura._yellow.withValues(alpha: 0.5 * ign)
+          ..blendMode = BlendMode.plus
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FireFrontPainter old) =>
+      old.fire.ignition != fire.ignition || old.fire.time != fire.time;
 }

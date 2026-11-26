@@ -380,9 +380,21 @@ void main() {
       // Sin niño registrado se usa el genérico.
       expect(find.text('Tu hijo/a y tú contra el Cráter 1'), findsOneWidget);
 
-      // La portada se cierra sola (~1.6 s).
-      await tester.pump(const Duration(milliseconds: 1300));
-      await tester.pump(const Duration(milliseconds: 100));
+      // La portada no avanza sola: espera el toque del padre.
+      await tester.pump(const Duration(seconds: 10));
+      expect(find.byKey(ExerciseSessionScreen.introKey), findsOneWidget);
+      // Y tapa la sesión por completo (fondo opaco).
+      final box = tester.widget<ColoredBox>(find
+          .descendant(
+              of: find.byKey(ExerciseSessionScreen.introKey),
+              matching: find.byType(ColoredBox))
+          .first);
+      expect(box.color.a, 1);
+
+      await tester.tap(find.byKey(ExerciseSessionScreen.introKey));
+      await tester.pump();
+      await tester.pump(ExerciseSessionScreen.introExit);
+      await tester.pump(const Duration(milliseconds: 50));
       expect(find.byKey(ExerciseSessionScreen.introKey), findsNothing);
 
       // Recién ahora parte la preparación completa: no corrió debajo.
@@ -405,11 +417,13 @@ void main() {
 
       await tester.tap(find.byKey(ExerciseSessionScreen.introKey));
       await tester.pump();
+      await tester.pump(ExerciseSessionScreen.introExit);
+      await tester.pump(const Duration(milliseconds: 50));
       expect(find.byKey(ExerciseSessionScreen.introKey), findsNothing);
       expect(find.text('¡A entrenar juntos!'), findsNothing);
       expect(find.text('¡Prepárate!'), findsWidgets);
 
-      // La preparación dura lo de siempre desde el toque.
+      // La preparación dura lo de siempre desde que se cierra.
       await tester
           .pump(Duration(milliseconds: AppConstants.prepSeconds * 1000 - 500));
       expect(badgeScale(tester), 0);
@@ -418,7 +432,7 @@ void main() {
       expect(badgeScale(tester), 1);
     });
 
-    testWidgets('con animaciones reducidas la portada es más corta',
+    testWidgets('con animaciones reducidas la portada solo se funde',
         (tester) async {
       await openSession(tester, skipIntro: false, reduceMotion: true);
       expect(find.byKey(ExerciseSessionScreen.introKey), findsOneWidget);
@@ -432,7 +446,9 @@ void main() {
         expect(t.transform.getMaxScaleOnAxis(), closeTo(1, 1e-6));
       }
 
-      await tester.pump(ExerciseSessionScreen.introDurationReduced);
+      await tester.tap(find.byKey(ExerciseSessionScreen.introKey));
+      await tester.pump();
+      await tester.pump(ExerciseSessionScreen.introExitReduced);
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byKey(ExerciseSessionScreen.introKey), findsNothing);
       expect(find.text('¡Prepárate!'), findsWidgets);

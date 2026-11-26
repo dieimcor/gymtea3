@@ -394,8 +394,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
           ),
           // El marciano va por encima de todo el tablero (panel, aviso y
           // marcadores) y solo queda debajo del viaje.
-          if (view != null && travel == null && !_turning)
-            _buildAlienOverlay(),
+          if (view != null && travel == null && !_turning) _buildAlienOverlay(),
           if (travel != null)
             Positioned.fill(
               child: CometTravel(
@@ -713,11 +712,10 @@ class _CraterMapScreenState extends State<CraterMapScreen>
             // asi los marcadores nunca se despegan de sus crateres. Solo se
             // mueven transformaciones sobre un hijo que no se reconstruye.
             child: AnimatedBuilder(
-              animation: _floatController,
+              animation: Listenable.merge([_floatController, _alienController]),
               builder: (context, child) {
-                final raw = _floatController.value;
-                final t = Curves.easeInOut.transform(raw);
-                final shake = _shakeOffset(raw);
+                final t = Curves.easeInOut.transform(_floatController.value);
+                final shake = _shakeOffset(_alienController.value);
                 return Transform.translate(
                   offset: Offset(shake, -3 + t * 6),
                   child: Transform.rotate(
@@ -770,20 +768,10 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     );
   }
 
-  /// Desplazamiento horizontal de la sacudida del cometa. Solo en las
-  /// rutas exigentes: Astronauta tiembla apenas y Comandante se sacude
-  /// en ráfagas cortas, como un asteroide inquieto.
+  /// Desplazamiento horizontal del balanceo del cometa (ver [cometSway]).
   double _shakeOffset(double t) {
     if (_reduceMotion) return 0;
-    final level = context.read<ExerciseProvider>().route.nivel;
-    if (level <= 1) return 0;
-    // Ráfaga en una ventana corta del vaivén.
-    const start = 0.42, end = 0.58;
-    if (t < start || t > end) return 0;
-    final k = (t - start) / (end - start);
-    final envelope = math.sin(k * math.pi);
-    final amp = level >= 3 ? 3.2 : 1.2;
-    return math.sin(k * math.pi * 18) * amp * envelope;
+    return cometSway(t, context.read<ExerciseProvider>().route.nivel);
   }
 
   /// Fundido + zoom del cometa en la primera aparición del tablero.
@@ -995,6 +983,25 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       _openingCrater = false;
     }
   }
+}
+
+/// Ventana del ciclo del marciano (16 s) en que el cometa se balancea:
+/// ~1,6 s, lejos del acercamiento, la vuelta y el salto del marciano.
+const cometSwayWindow = (start: 0.66, end: 0.76);
+
+/// Balanceo horizontal del cometa en las rutas exigentes (t = ciclo del
+/// marciano, de 0 a 1). Es lento y suave a propósito: 3 vaivenes (~2 por
+/// segundo) una vez cada 16 s, nunca un temblor rápido, pensando en niños
+/// con sensibilidad sensorial. Explorador no se mueve; Astronauta apenas
+/// (2 px) y Comandante algo más (4 px).
+double cometSway(double t, int routeLevel) {
+  if (routeLevel <= 1) return 0;
+  final (:start, :end) = cometSwayWindow;
+  if (t < start || t > end) return 0;
+  final k = (t - start) / (end - start);
+  final envelope = math.sin(k * math.pi);
+  final amp = routeLevel >= 3 ? 4.0 : 2.0;
+  return math.sin(k * math.pi * 2 * 3) * amp * envelope;
 }
 
 /// Pose del marciano en un instante de su ciclo de flotación.

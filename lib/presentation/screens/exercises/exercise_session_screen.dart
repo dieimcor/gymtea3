@@ -36,9 +36,13 @@ class ExerciseSessionScreen extends StatefulWidget {
   /// Portada inicial ("¡A entrenar juntos!").
   static const introKey = Key('session_intro');
 
-  /// Duración de la portada (normal y con animaciones reducidas).
-  static const introDuration = Duration(milliseconds: 1600);
-  static const introDurationReduced = Duration(milliseconds: 900);
+  /// Entrada y salida de la portada (normal y con animaciones reducidas).
+  /// La portada no avanza sola: espera el toque del padre, así la sesión
+  /// no parte con el niño todavía lejos.
+  static const introEntrance = Duration(milliseconds: 450);
+  static const introEntranceReduced = Duration(milliseconds: 200);
+  static const introExit = Duration(milliseconds: 350);
+  static const introExitReduced = Duration(milliseconds: 150);
 
   @override
   State<ExerciseSessionScreen> createState() => _ExerciseSessionScreenState();
@@ -87,9 +91,16 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
   /// Animaciones reducidas (accesibilidad): portada más corta y sin escala.
   bool _reduceMotion = false;
 
+  /// Entrada de la portada; al terminar se queda quieta esperando el toque.
   late final AnimationController _introController = AnimationController(
     vsync: this,
-    duration: ExerciseSessionScreen.introDuration,
+    duration: ExerciseSessionScreen.introEntrance,
+  );
+
+  /// Salida de la portada tras el toque; al terminar parte la serie 1.
+  late final AnimationController _introExitController = AnimationController(
+    vsync: this,
+    duration: ExerciseSessionScreen.introExit,
   )..addStatusListener((status) {
       if (status == AnimationStatus.completed) _endIntro();
     });
@@ -104,6 +115,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
   void dispose() {
     _prepController.dispose();
     _introController.dispose();
+    _introExitController.dispose();
     super.dispose();
   }
 
@@ -133,17 +145,29 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
       _preparing = _plan[0].prepSeconds > 0;
       _introVisible = true;
     });
+    _introExitController
+      ..duration = _reduceMotion
+          ? ExerciseSessionScreen.introExitReduced
+          : ExerciseSessionScreen.introExit
+      ..value = 0;
     _introController
       ..duration = _reduceMotion
-          ? ExerciseSessionScreen.introDurationReduced
-          : ExerciseSessionScreen.introDuration
+          ? ExerciseSessionScreen.introEntranceReduced
+          : ExerciseSessionScreen.introEntrance
       ..forward(from: 0);
   }
 
-  /// Cierra la portada (al terminar o con un toque) y parte la serie 1.
+  /// Toque en la portada: sale con un fundido y luego parte la serie 1.
+  void _leaveIntro() {
+    if (!_introVisible || _introExitController.isAnimating) return;
+    _introExitController.forward();
+  }
+
+  /// Cierra la portada y parte la serie 1.
   void _endIntro() {
     if (!_introVisible || !mounted) return;
     _introController.stop();
+    _introExitController.stop();
     setState(() => _introVisible = false);
     _enterStep(0);
   }
@@ -603,33 +627,31 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
     ];
   }
 
-  /// Portada "¡A entrenar juntos!": entra, se queda un momento y sale
-  /// agrandándose y desvaneciéndose. Un toque la salta. Con animaciones
-  /// reducidas solo aparece y desaparece con un fundido.
+  /// Portada "¡A entrenar juntos!": entra y se queda hasta que el padre
+  /// toca; entonces sale agrandándose y desvaneciéndose. Tapa por completo
+  /// la sesión (no se trasluce el contador). Con animaciones reducidas solo
+  /// aparece y desaparece con un fundido.
   Widget _buildIntroOverlay(RoutineModel routine) {
     return Positioned.fill(
       child: GestureDetector(
         key: ExerciseSessionScreen.introKey,
         behavior: HitTestBehavior.opaque,
-        onTap: _endIntro,
+        onTap: _leaveIntro,
         child: AnimatedBuilder(
-          animation: _introController,
+          animation: Listenable.merge([_introController, _introExitController]),
           builder: (context, child) {
-            final t = _introController.value;
-            // Entra en el primer 20 % y sale en el último 25 %.
-            final fadeIn = (t / 0.2).clamp(0.0, 1.0);
-            final fadeOut = ((1 - t) / 0.25).clamp(0.0, 1.0);
-            final opacity = fadeIn < fadeOut ? fadeIn : fadeOut;
+            final fadeIn = _introController.value;
+            final leave = Curves.easeIn.transform(_introExitController.value);
+            final opacity = fadeIn * (1 - leave);
             var scale = 1.0;
             if (!_reduceMotion) {
-              scale = t < 0.2
-                  ? 0.8 + 0.2 * Curves.easeOutBack.transform(fadeIn)
-                  : 1.0 + 0.12 * (1 - fadeOut);
+              scale = 0.8 +
+                  0.2 * Curves.easeOutBack.transform(fadeIn) +
+                  0.12 * leave;
             }
-            // El fondo siempre tapa la sesión: la preparación aún no corre.
+            // Fondo opaco: la sesión de abajo solo aparece al salir.
             return ColoredBox(
-              color: AppTheme.backgroundDark
-                  .withValues(alpha: 0.96 * (0.4 + 0.6 * opacity)),
+              color: AppTheme.backgroundDark.withValues(alpha: 1 - leave),
               child: Opacity(
                 opacity: opacity,
                 child: Transform.scale(scale: scale, child: child),
@@ -672,11 +694,23 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Text(
-                    'Toca para empezar',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.5),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 22, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.goldAccent.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                          color: AppTheme.goldAccent.withValues(alpha: 0.6)),
+                    ),
+                    child: const Text(
+                      'Toca cuando estén listos',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -718,7 +752,10 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
     if (_finishing) return;
     // Se congela la sesión (o la portada) mientras el padre decide.
     final inIntro = _introVisible;
-    if (inIntro) _introController.stop();
+    if (inIntro) {
+      _introController.stop();
+      _introExitController.stop();
+    }
     final wasPaused = _paused;
     if (!inIntro && !wasPaused && !_busy) _togglePause();
 
@@ -752,7 +789,11 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
       if (exit == true) {
         Navigator.pop(context);
       } else if (inIntro) {
-        if (_introVisible) _introController.forward();
+        if (_introVisible) {
+          _introController.forward();
+          // Si ya estaba saliendo, termina de salir.
+          if (_introExitController.value > 0) _introExitController.forward();
+        }
       } else if (!wasPaused && _paused) {
         _togglePause();
       }

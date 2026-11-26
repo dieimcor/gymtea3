@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:gymtea3/core/constants/app_constants.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/core/theme/comet_theme.dart';
 import 'package:gymtea3/data/models/reward_messages.dart';
@@ -318,7 +319,7 @@ class _CometRewardScreenState extends State<CometRewardScreen>
           Icon(Icons.auto_awesome_rounded, size: 16, color: comet.glow),
           const SizedBox(width: 6),
           Text(
-            '¡4 de 4 cráteres!',
+            '¡${AppConstants.cratersPerComet} de ${AppConstants.cratersPerComet} cráteres!',
             style: TextStyle(
               color: comet.glow,
               fontWeight: FontWeight.w700,

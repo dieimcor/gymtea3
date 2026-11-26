@@ -265,7 +265,7 @@ class CraterPreviewDialog extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),

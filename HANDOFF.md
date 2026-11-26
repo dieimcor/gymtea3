@@ -80,12 +80,57 @@ volver a entrar).
   acercamiento se note (subir escala/desplazamiento si hace falta) y que
   no bloquee toques (`IgnorePointer`).
 
-**PRÓXIMA SESIÓN — super revisión de UX** (pedida por el usuario):
+**Revisión de UX hecha (2026-11-26, leyendo el código):** ver
+`docs/revision-ux-2026-11-26.md` (32 hallazgos Alta/Media/Baja + causas
+de los puntos de la sesión). Ojo: `docs/` está en `.gitignore`, el
+archivo es solo local.
+
+**Arreglados los 6 de prioridad alta** (2026-11-26):
+1. Perfil con AppBar "Perfil" (flecha atrás) y SafeArea.
+2. Cerrar sesión limpia toda la pila (`pushNamedAndRemoveUntil`).
+3. Recompensa: "¡8 de 8 cráteres!" (`AppConstants.cratersPerComet`).
+4. Portada de la sesión: **espera el toque** ("Toca cuando estén listos",
+   botón dorado), fondo **opaco** (no se trasluce el contador) y sale con
+   un fundido de 350 ms. Constantes `introEntrance`/`introExit`.
+5. Sacudida del cometa → balanceo lento `cometSway` (3 vaivenes, ~2 Hz,
+   una vez por ciclo de 16 s del marciano, 2 px Astronauta / 4 px
+   Comandante). Test en `space_backdrop_test.dart`.
+6. Letras: etiqueta del cráter 9→12, etiquetas de las cajas 10→12 (w600),
+   chips del pop-up 10→12.
+
+**Despegue: el fuego envuelve al marciano** (pedido del usuario):
+`FireAura` en `launch_screen.dart` reemplaza a `_Flame`. Capa detrás
+(resplandor + envoltura en gota que lo rodea y se estira en la cola +
+lenguas) y capa delante (borde caliente abajo + lenguas por los costados).
+Antes de encender solo hay una llamita; crece con `ignition`.
+
+Siguen los hallazgos Media/Baja de la revisión (7–32) para profundizar.
+
+~~**PRÓXIMA SESIÓN — super revisión de UX**~~ (pedida por el usuario):
 recorrer toda la app como padre (login → ruta → despegue → mapa → pop-up →
 sesión → "¿Cómo le fue?" → recompensa → giro/viaje → perfil) y anotar
 fricciones, textos, tamaños, tiempos y animaciones. Ya visto: en la sesión,
 el chip "Descanso · 25s" / "Serie 2 de 2" superpone ambos textos durante
 el AnimatedSwitcher.
+
+**DESPUÉS DE LA REVISIÓN DE UX — datos de los ejercicios** (pedido
+2026-11-26): textos, tablas y elementos gráficos de la sesión. Los botones
+están perfectos; no cambiarlos.
+- Demasiados números con fuentes distintas: unificar la tipografía de
+  cifras (contador, series, descanso, tiempos).
+- La hoja "¿Cómo le fue?" deja ver la pantalla de atrás: debe tapar el
+  fondo (a lo sumo dejar ver el contador en espera, nada más).
+- Lo mismo al empezar el ejercicio: la pantalla del contador no debe
+  traslucirse.
+- Criterio general del usuario: que todo se vea **más acabado y
+  ordenado**. Si quedan cifras de estilos distintos, juntarlas en **un
+  solo panel claro**; mejor aún, mostrar solo lo que importa en cada
+  momento y sacar el resto.
+- Sonido: hoy la app **no tiene ningún sonido** (ni paquete de audio ni
+  assets); solo vibración en la recompensa (`comet_reward_screen.dart`
+  líneas 94 y 137). Queda pendiente decidir con el usuario si agregar
+  sonidos (opcionales, suaves, con interruptor, por la sensibilidad
+  sensorial).
 
 **Pendientes:**
 1. ~~Sprites de pisadas~~ — descartado: el usuario verificó que el avance

@@ -5,6 +5,33 @@ import 'package:gymtea3/presentation/animations/space_backdrop.dart';
 import 'package:gymtea3/presentation/screens/home/crater_map_screen.dart';
 
 void main() {
+  test('el cometa se balancea lento y no tiembla', () {
+    const cycle = 16.0; // s, ciclo del marciano
+    for (final level in [2, 3]) {
+      // Cuenta cruces por cero dentro del ciclo: 3 vaivenes = 5 cruces.
+      var crossings = 0;
+      var maxAmp = 0.0;
+      double? prev;
+      for (var i = 0; i <= 16000; i++) {
+        final v = cometSway(i / 16000, level);
+        maxAmp = v.abs() > maxAmp ? v.abs() : maxAmp;
+        if (prev != null && prev != 0 && v != 0 && (prev < 0) != (v < 0)) {
+          crossings++;
+        }
+        prev = v;
+      }
+      final (:start, :end) = cometSwayWindow;
+      final seconds = (end - start) * cycle;
+      // Frecuencia ≤ 3 Hz (antes ~19 Hz).
+      expect((crossings + 1) / 2 / seconds, lessThanOrEqualTo(3));
+      expect(maxAmp, lessThanOrEqualTo(4.0));
+    }
+    // Explorador no se mueve.
+    for (var i = 0; i <= 100; i++) {
+      expect(cometSway(i / 100, 1), 0);
+    }
+  });
+
   test('la dificultad sube la velocidad y los asteroides', () {
     ParallaxPainter painter(int i) => ParallaxPainter(
           intensity: i,
@@ -30,11 +57,14 @@ void main() {
   test('el marciano mezcla flotar, acercarse, girar y saltar', () {
     final poses = [for (var i = 0; i <= 100; i++) alienMotion(i / 100)];
     expect(poses.map((p) => p.scale).reduce((a, b) => a > b ? a : b),
-        greaterThan(1.4), reason: 'se acerca a la pantalla');
+        greaterThan(1.4),
+        reason: 'se acerca a la pantalla');
     expect(poses.map((p) => p.angle).reduce((a, b) => a > b ? a : b),
-        greaterThan(5), reason: 'da una vuelta completa');
+        greaterThan(5),
+        reason: 'da una vuelta completa');
     expect(poses.map((p) => p.offset.dy).reduce((a, b) => a < b ? a : b),
-        lessThan(-30), reason: 'salta');
+        lessThan(-30),
+        reason: 'salta');
     // El ciclo empieza y termina igual (sin saltos al repetirse).
     expect(alienMotion(0).scale, alienMotion(1).scale);
   });

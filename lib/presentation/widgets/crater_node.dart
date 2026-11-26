@@ -371,7 +371,7 @@ class _CraterMarkerState extends State<CraterMarker>
         '${widget.dificultad.label} · '
         '${widget.exerciseCount ?? widget.dificultad.exerciseCount}',
         style: const TextStyle(
-          fontSize: 9,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
