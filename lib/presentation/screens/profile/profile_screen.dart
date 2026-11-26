@@ -454,6 +454,20 @@ class ProfileScreen extends StatelessWidget {
     double scaleFrom = 0.96,
   }) {
     final total = delayMs + durationMs;
+    // Con movimiento reducido las tarjetas aparecen sin más.
+    return Builder(builder: (context) {
+      if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return child;
+      return _entranceTween(child, total, delayMs, curve, scaleFrom);
+    });
+  }
+
+  static Widget _entranceTween(
+    Widget child,
+    int total,
+    int delayMs,
+    Curve curve,
+    double scaleFrom,
+  ) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: total),

@@ -13,12 +13,15 @@ class SettingsProvider extends ChangeNotifier {
   bool _calmMode = false;
   bool get calmMode => _calmMode;
 
+  /// El padre ya lo cambió: una lectura que llegue tarde no lo pisa.
+  bool _changedByUser = false;
+
   /// Lee lo guardado. Si falla, queda el valor por defecto (apagado).
   Future<void> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getBool(calmModeKey) ?? false;
-      if (saved != _calmMode) {
+      if (!_changedByUser && saved != _calmMode) {
         _calmMode = saved;
         notifyListeners();
       }
@@ -26,6 +29,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   Future<void> setCalmMode(bool value) async {
+    _changedByUser = true;
     if (value == _calmMode) return;
     _calmMode = value;
     notifyListeners();

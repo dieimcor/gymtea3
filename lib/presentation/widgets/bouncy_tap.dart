@@ -17,20 +17,28 @@ class BouncyTap extends StatefulWidget {
 
 class _BouncyTapState extends State<BouncyTap>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 110),
-    reverseDuration: const Duration(milliseconds: 380),
-  );
+  // Se crean en initState (no perezosos): con movimiento reducido el build
+  // no los toca, y crearlos recién en dispose busca ancestros ya inactivos.
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
 
-  late final Animation<double> _scale = Tween<double>(
-    begin: 1,
-    end: widget.pressedScale,
-  ).animate(CurvedAnimation(
-    parent: _controller,
-    curve: Curves.easeOut,
-    reverseCurve: Curves.elasticIn,
-  ));
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 110),
+      reverseDuration: const Duration(milliseconds: 380),
+    );
+    _scale = Tween<double>(
+      begin: 1,
+      end: widget.pressedScale,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.elasticIn,
+    ));
+  }
 
   @override
   void dispose() {
@@ -40,6 +48,10 @@ class _BouncyTapState extends State<BouncyTap>
 
   @override
   Widget build(BuildContext context) {
+    // Con movimiento reducido no hay rebote al tocar.
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      return widget.child;
+    }
     return Listener(
       onPointerDown: (_) => _controller.forward(),
       onPointerUp: (_) => _controller.reverse(),

@@ -37,6 +37,13 @@ void main() {
       expect(spokenDuration(130), '2 min 10 s');
     });
 
+    test('las vueltas se nombran también pasada la quinta', () {
+      expect(vueltaLabel(1), 'Primera vuelta');
+      expect(vueltaLabel(6), 'Vuelta 6');
+      expect(nextVueltaPhrase(2), 'la segunda vuelta');
+      expect(nextVueltaPhrase(6), 'la vuelta 6');
+    });
+
     Widget controls({required bool running, required bool preparing}) =>
         MaterialApp(
           home: Scaffold(
@@ -61,6 +68,20 @@ void main() {
       await tester.pumpWidget(controls(running: true, preparing: true));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('¡Prepárate!'), findsOneWidget);
+
+      // Terminado con el guardado pendiente: detenido, pero sin "En pausa".
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SessionControls(
+            isRunning: false,
+            preparing: false,
+            showPauseLabel: false,
+            onTogglePause: () {},
+          ),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('En pausa'), findsNothing);
     });
 
     testWidgets('el botón atrás no cierra "¿Cómo le fue?"', (tester) async {

@@ -20,12 +20,19 @@ class CraterPreviewDialog extends StatelessWidget {
   final VoidCallback onReshuffle;
   final bool isReshuffling;
 
+  /// Aviso breve sobre los botones (p. ej. si no se pudo volver a sortear).
+  final String? notice;
+
   const CraterPreviewDialog({
     super.key,
     required this.routine,
     required this.onReshuffle,
     this.isReshuffling = false,
+    this.notice,
   });
+
+  /// Aviso dentro del pop-up.
+  static const noticeKey = Key('crater_preview_notice');
 
   /// Sección "Para este cráter necesitan".
   static const gearKey = Key('crater_preview_gear');
@@ -35,15 +42,17 @@ class CraterPreviewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Con movimiento reducido entra con un fundido corto, sin rebote.
+    final calm = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 650),
-        curve: Curves.elasticOut,
+        duration: Duration(milliseconds: calm ? 200 : 650),
+        curve: calm ? Curves.easeOut : Curves.elasticOut,
         builder: (context, t, child) => Transform.scale(
-          scale: 0.6 + 0.4 * t,
+          scale: calm ? 1 : 0.6 + 0.4 * t,
           child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
         ),
         child: _buildCard(context),
@@ -363,6 +372,20 @@ class CraterPreviewDialog extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
+          if (notice != null)
+            Padding(
+              key: noticeKey,
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                notice!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.goldAccent,
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -430,6 +453,7 @@ class _StaggeredEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return child;
     final delayMs = 150 + index * _stepMs;
     final totalMs = delayMs + _itemMs;
 

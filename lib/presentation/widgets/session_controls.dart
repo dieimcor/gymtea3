@@ -29,6 +29,10 @@ class SessionControls extends StatelessWidget {
   /// Atenúa "anterior" (p.ej. en la primera serie recién empezada).
   final bool previousDimmed;
 
+  /// Muestra "En pausa" al estar detenido. Se apaga cuando la rutina ya
+  /// terminó y solo falta reintentar el guardado.
+  final bool showPauseLabel;
+
   static const previousKey = Key('session_previous');
   static const toggleKey = Key('session_toggle');
   static const nextKey = Key('session_next');
@@ -42,6 +46,7 @@ class SessionControls extends StatelessWidget {
     this.onTogglePause,
     this.onNext,
     this.previousDimmed = false,
+    this.showPauseLabel = true,
   });
 
   @override
@@ -57,7 +62,7 @@ class SessionControls extends StatelessWidget {
             scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
             child: FadeTransition(opacity: anim, child: child),
           ),
-          child: preparing || !isRunning
+          child: preparing || (!isRunning && showPauseLabel)
               ? Padding(
                   key: ValueKey(
                       preparing && isRunning ? 'prep-label' : 'pause-label'),

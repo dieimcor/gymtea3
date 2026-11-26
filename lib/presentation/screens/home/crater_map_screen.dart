@@ -281,6 +281,14 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     }
   }
 
+  /// Corta el número en curso (el marciano se oculta durante el viaje o
+  /// el giro y no debe volver a mitad de una pose).
+  void _cancelAct() {
+    _actController.stop();
+    _act = null;
+    _scheduleAct(alienIdleGap(_random));
+  }
+
   /// Programa el próximo número del marciano.
   void _scheduleAct(Duration delay) {
     _actTimer?.cancel();
@@ -292,7 +300,10 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     if (!mounted || _reduceMotion) return;
     // Si el tablero no está a la vista (cargando, viajando o girando), se
     // espera un poco más.
-    if (_view == null || _travel != null || _turning) {
+    if (_view == null ||
+        _travel != null ||
+        _turning ||
+        _entranceController.isAnimating) {
       _scheduleAct(const Duration(seconds: 2));
       return;
     }
@@ -385,10 +396,12 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       if (next.cometIndex > previous.cometIndex) {
         // Se conquisto el cometa: viaje al siguiente. El panel espera.
         _travel = _Travel(previous.cometIndex, next.cometIndex);
+        _cancelAct();
       } else if (next.roundIndex > previous.roundIndex) {
         // Se terminó la primera cara: el cometa da la vuelta. El panel
         // espera a que la cara nueva esté a la vista.
         _turning = true;
+        _cancelAct();
       } else {
         _panelView = next;
       }
@@ -1099,6 +1112,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       if (!mounted) return;
 
       var reshuffling = false;
+      String? reshuffleError;
 
       // El pop-up hace su propia entrada con rebote (ver CraterPreviewDialog).
       final start = await showDialog<bool>(
@@ -1115,13 +1129,19 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                   return CraterPreviewDialog(
                     routine: routine,
                     isReshuffling: reshuffling,
+                    notice: reshuffleError,
                     onReshuffle: () async {
-                      setDialogState(() => reshuffling = true);
+                      setDialogState(() {
+                        reshuffling = true;
+                        reshuffleError = null;
+                      });
                       try {
                         await p.buildRoutine(childId: childId, level: level);
                       } catch (_) {
-                        // Se queda la rutina que ya estaba a la vista.
-                        if (mounted) _showError(craterReshuffleError);
+                        // Se queda la rutina que ya estaba a la vista y el
+                        // aviso va dentro del pop-up (un SnackBar quedaría
+                        // detrás de su fondo oscuro).
+                        reshuffleError = craterReshuffleError;
                       } finally {
                         // Nunca queda pegado el botón "Sortear".
                         if (dialogContext.mounted) {

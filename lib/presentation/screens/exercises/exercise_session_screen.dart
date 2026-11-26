@@ -237,7 +237,8 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
   String _exitMessage() {
     var seconds = _elapsedSeconds;
     final step = _step;
-    if (!_introVisible && step != null && !step.isRest) {
+    // Tras un guardado fallido la última serie ya se sumó al dejarla.
+    if (!_introVisible && !_saveFailed && step != null && !step.isRest) {
       seconds += _timerKey.currentState?.elapsedSeconds ?? 0;
     }
     const lose = 'Si salen ahora, esta rutina no se guardará.';
@@ -333,6 +334,8 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
   // ------------------------------------------------------------------
 
   Future<void> _finish() async {
+    // El SnackBar de "Reintentar" puede seguir a la vista tras salir.
+    if (!mounted) return;
     final routine = _routine;
     if (routine == null || _finishing) return;
 
@@ -477,6 +480,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
                       preparing: _preparing,
                       prepAnimation: _prepController,
                       previousDimmed: _index == 0,
+                      showPauseLabel: !_saveFailed,
                       onPrevious: _goPrevious,
                       onTogglePause: _togglePause,
                       onNext: _goNext,
@@ -543,7 +547,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
 
   /// Puntitos de vuelta (serie) + "Primera vuelta".
   Widget _buildSeriesDots(SessionStep step) {
-    final label = '${vueltaName(step.serie)} vuelta';
+    final label = vueltaLabel(step.serie);
     return Semantics(
       label: 'Serie ${step.serie} de ${step.totalSeries}',
       child: ExcludeSemantics(
@@ -594,8 +598,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
     if (next == null) return 'Respiren hondo. ¡Ya casi terminan!';
     final current = _plan[_index];
     if (next.exerciseIndex == current.exerciseIndex) {
-      final vuelta = vueltaName(next.serie).toLowerCase();
-      return 'Respiren hondo. Ya viene la $vuelta vuelta.';
+      return 'Respiren hondo. Ya viene ${nextVueltaPhrase(next.serie)}.';
     }
     return 'Respiren hondo. Ya viene: ${next.exercise.nombre}.';
   }
@@ -1137,11 +1140,24 @@ String spokenDuration(int seconds) {
 }
 
 /// "Primera", "Segunda"… para nombrar la vuelta (serie) sin números.
-String vueltaName(int serie) => switch (serie) {
+/// Pasada la quinta no hay palabra: devuelve null.
+String? vueltaName(int serie) => switch (serie) {
       1 => 'Primera',
       2 => 'Segunda',
       3 => 'Tercera',
       4 => 'Cuarta',
       5 => 'Quinta',
-      _ => 'Otra',
+      _ => null,
     };
+
+/// "Primera vuelta"… y desde la sexta "Vuelta 6".
+String vueltaLabel(int serie) {
+  final name = vueltaName(serie);
+  return name == null ? 'Vuelta $serie' : '$name vuelta';
+}
+
+/// "la segunda vuelta" / "la vuelta 6", para "Ya viene …".
+String nextVueltaPhrase(int serie) {
+  final name = vueltaName(serie);
+  return name == null ? 'la vuelta $serie' : 'la ${name.toLowerCase()} vuelta';
+}

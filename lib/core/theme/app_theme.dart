@@ -130,6 +130,10 @@ class SoftPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    // Con movimiento reducido: solo un fundido.
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      return FadeTransition(opacity: animation, child: child);
+    }
     final enter = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutCubic,

@@ -30,13 +30,18 @@ import 'package:gymtea3/presentation/screens/route/route_selection_screen.dart';
 class NeuroGymApp extends StatelessWidget {
   final StorageService storageService;
 
-  const NeuroGymApp({super.key, required this.storageService});
+  /// Preferencias ya cargadas (ver main.dart).
+  final SettingsProvider? settings;
+
+  const NeuroGymApp({super.key, required this.storageService, this.settings});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
+        ChangeNotifierProvider(
+          create: (_) => settings ?? (SettingsProvider()..load()),
+        ),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authRepository: AuthRepository(
