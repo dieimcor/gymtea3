@@ -135,8 +135,13 @@ y controles sin cambios. Letras chicas del mapa y pop-up también
 hechas: aviso del día 14 pt con ícono ↻, " / 16" al tamaño del número,
 chip del cometa 13, pop-up "Para este cráter necesitan" 14, categoría
 13 y duración en palabras ("El cráter dura unos 7 minutos",
-`estimatedLabel`). **Pendiente decidir con el usuario:** modo calma
-(#21) y suavizar el giro del marciano (#13).
+`estimatedLabel`). **Modo calma hecho:** Perfil → "Animaciones
+suaves" (apagado de entrada; `SettingsProvider`, aplica
+`disableAnimations` a toda la app). **Marciano con "gracias"**
+(`animations/alien_antics.dart`): cada 4–7 s hace un número al azar sin
+repetir — se acerca mucho a la pantalla, se sube al panel y camina,
+choca contra los dos bordes y vuelve mareado, voltereta, saludo. Con
+movimiento reducido se queda quieto.
 
 **Siguiente — Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
 quedan (#7, #8, #16, #17). **Consultar al usuario:** "modo calma" propio

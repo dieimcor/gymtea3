@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:gymtea3/presentation/animations/alien_antics.dart';
 import 'package:gymtea3/core/constants/app_constants.dart';
 import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/data/models/difficulty.dart';
@@ -182,9 +183,20 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   /// Vaiven del marciano y del cometa para que no se vean estaticos.
   late final AnimationController _floatController;
 
-  /// Ciclo de animaciones del marciano (flota, se acerca, da una vuelta,
-  /// salta). Ver [alienMotion].
+  /// Reloj del flotar del marciano (y del balanceo del cometa): una vuelta
+  /// cada 16 s. Ver [alienIdle].
   late final AnimationController _alienController;
+
+  /// Número que hace el marciano de vez en cuando (ver [AlienAct]).
+  late final AnimationController _actController;
+  AlienAct? _act;
+  AlienAct? _lastAct;
+  Timer? _actTimer;
+  final math.Random _random = math.Random();
+
+  /// Para saber dónde están, en pantalla, el lugar del marciano y el panel.
+  final GlobalKey _alienAnchorKey = GlobalKey();
+  final GlobalKey _panelKey = GlobalKey();
 
   /// Entrada del tablero la primera vez: el cometa aparece con un zoom y
   /// el panel baja desde arriba.
@@ -231,6 +243,12 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     );
+    _actController = AnimationController(vsync: this)
+      ..addStatusListener((status) {
+        if (status != AnimationStatus.completed || !mounted) return;
+        setState(() => _act = null);
+        _scheduleAct(alienIdleGap(_random));
+      });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _initialLoad());
   }
@@ -247,12 +265,65 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       _alienController
         ..stop()
         ..value = 0;
+      // Sin números: el marciano solo se queda junto al cráter.
+      _actTimer?.cancel();
+      _actTimer = null;
+      _actController.stop();
+      _act = null;
     } else {
       if (!_floatController.isAnimating) {
         _floatController.repeat(reverse: true);
       }
       if (!_alienController.isAnimating) _alienController.repeat();
+      if (_act == null && _actTimer == null) {
+        _scheduleAct(const Duration(seconds: 3));
+      }
     }
+  }
+
+  /// Programa el próximo número del marciano.
+  void _scheduleAct(Duration delay) {
+    _actTimer?.cancel();
+    _actTimer = Timer(delay, _startAct);
+  }
+
+  void _startAct() {
+    _actTimer = null;
+    if (!mounted || _reduceMotion) return;
+    // Si el tablero no está a la vista (cargando, viajando o girando), se
+    // espera un poco más.
+    if (_view == null || _travel != null || _turning) {
+      _scheduleAct(const Duration(seconds: 2));
+      return;
+    }
+    final act = nextAlienAct(_random, _lastAct);
+    _lastAct = act;
+    _actController.duration = alienActDuration(act);
+    setState(() => _act = act);
+    _actController.forward(from: 0);
+  }
+
+  /// Dónde están las cosas en pantalla para los números del marciano.
+  AlienStage? _alienStage() {
+    final anchor =
+        _alienAnchorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (anchor == null || !anchor.attached || !anchor.hasSize) return null;
+    final screen = MediaQuery.sizeOf(context);
+    var panelTop = screen.height * 0.2;
+    var panelCenterX = screen.width / 2;
+    final panel = _panelKey.currentContext?.findRenderObject() as RenderBox?;
+    if (panel != null && panel.attached && panel.hasSize) {
+      final origin = panel.localToGlobal(Offset.zero);
+      panelTop = origin.dy;
+      panelCenterX = origin.dx + panel.size.width / 2;
+    }
+    return AlienStage(
+      anchor: anchor.localToGlobal(anchor.size.center(Offset.zero)),
+      screen: screen,
+      panelTop: panelTop,
+      panelCenterX: panelCenterX,
+      size: _alienSize,
+    );
   }
 
   Future<void> _initialLoad() async {
@@ -272,6 +343,8 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   void dispose() {
     _syncTimer?.cancel();
     _spinnerTimer?.cancel();
+    _actTimer?.cancel();
+    _actController.dispose();
     _floatController.dispose();
     _alienController.dispose();
     _entranceController.dispose();
@@ -516,21 +589,24 @@ class _CraterMapScreenState extends State<CraterMapScreen>
             ).animate(panelIn),
             child: Column(
               children: [
-                ProgressPanel(
-                  completed: panel.completed.length,
-                  total: provider.totalCraters,
-                  stats: panel.stats,
-                  cometName: panelTheme.name,
-                  cometColor: panelTheme.glow,
-                  cometNumber: panel.cometIndex + 1,
-                  totalComets: provider.totalComets,
-                  routeLabel: route.label,
-                  routeIcon: route.icon,
-                  routeColor: route.color,
-                  onRouteTap: () => Navigator.pushNamed(
-                    context,
-                    '/route',
-                    arguments: const {'changing': true},
+                KeyedSubtree(
+                  key: _panelKey,
+                  child: ProgressPanel(
+                    completed: panel.completed.length,
+                    total: provider.totalCraters,
+                    stats: panel.stats,
+                    cometName: panelTheme.name,
+                    cometColor: panelTheme.glow,
+                    cometNumber: panel.cometIndex + 1,
+                    totalComets: provider.totalComets,
+                    routeLabel: route.label,
+                    routeIcon: route.icon,
+                    routeColor: route.color,
+                    onRouteTap: () => Navigator.pushNamed(
+                      context,
+                      '/route',
+                      arguments: const {'changing': true},
+                    ),
                   ),
                 ),
                 AnimatedSize(
@@ -866,7 +942,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       height: size,
       child: CompositedTransformTarget(
         link: _alienLink,
-        child: const SizedBox.expand(),
+        child: SizedBox.expand(key: _alienAnchorKey),
       ),
     );
   }
@@ -890,14 +966,29 @@ class _CraterMapScreenState extends State<CraterMapScreen>
           child: FadeTransition(
             opacity: fade,
             child: AnimatedBuilder(
-              animation: _alienController,
+              animation: Listenable.merge([_alienController, _actController]),
               builder: (context, child) {
-                final m = alienMotion(_alienController.value);
+                final act = _act;
+                final stage = act == null ? null : _alienStage();
+                final m = combineAlienPose(
+                  alienIdle(_alienController.value),
+                  act == null || stage == null
+                      ? null
+                      : alienAct(act, _actController.value, stage),
+                );
                 return Transform.translate(
                   offset: m.offset,
                   child: Transform.rotate(
                     angle: m.angle,
-                    child: Transform.scale(scale: m.scale, child: child),
+                    child: Transform.scale(
+                      scale: m.scale,
+                      child: Transform(
+                        alignment: Alignment.bottomCenter,
+                        transform:
+                            Matrix4.diagonal3Values(m.squashX, m.squashY, 1),
+                        child: child,
+                      ),
+                    ),
                   ),
                 );
               },
@@ -1063,8 +1154,8 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   }
 }
 
-/// Ventana del ciclo del marciano (16 s) en que el cometa se balancea:
-/// ~1,6 s, lejos del acercamiento, la vuelta y el salto del marciano.
+/// Ventana del reloj del marciano (16 s) en que el cometa se balancea:
+/// ~1,6 s una vez por vuelta.
 const cometSwayWindow = (start: 0.66, end: 0.76);
 
 /// Balanceo horizontal del cometa en las rutas exigentes (t = ciclo del
@@ -1080,34 +1171,6 @@ double cometSway(double t, int routeLevel) {
   final envelope = math.sin(k * math.pi);
   final amp = routeLevel >= 3 ? 4.0 : 2.0;
   return math.sin(k * math.pi * 2 * 3) * amp * envelope;
-}
-
-/// Pose del marciano en un instante de su ciclo de flotación.
-typedef AlienPose = ({Offset offset, double angle, double scale});
-
-/// Ciclo del marciano (t de 0 a 1, ~16 s). Mezcla varias animaciones para
-/// que no se vea siempre igual:
-/// - flota suave (la mayor parte del tiempo),
-/// - se acerca a la pantalla (crece) y vuelve,
-/// - da una vuelta completa en el aire,
-/// - pega un salto.
-AlienPose alienMotion(double t) {
-  double win(double a, double b) =>
-      t < a || t > b ? 0 : math.sin((t - a) / (b - a) * math.pi);
-  final bob = math.sin(t * math.pi * 2 * 5) * 6;
-  final sway = math.sin(t * math.pi * 2 * 3) * 0.06;
-
-  final closer = win(0.22, 0.38); // se acerca
-  final spin = t >= 0.52 && t <= 0.62 ? (t - 0.52) / 0.1 : 0.0;
-  final hop = win(0.78, 0.86);
-
-  return (
-    // Al acercarse sube y crece: pasa por encima del panel, como si
-    // flotara hacia quien mira.
-    offset: Offset(-22 * closer, bob - 40 * hop - 34 * closer),
-    angle: sway + spin * math.pi * 2,
-    scale: 1 + 0.9 * closer,
-  );
 }
 
 /// Aviso al tocar un cráter bloqueado.

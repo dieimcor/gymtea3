@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:gymtea3/presentation/animations/alien_antics.dart';
 import 'package:gymtea3/presentation/animations/space_backdrop.dart';
 import 'package:gymtea3/presentation/screens/home/crater_map_screen.dart';
 
@@ -54,18 +57,64 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
-  test('el marciano mezcla flotar, acercarse, girar y saltar', () {
-    final poses = [for (var i = 0; i <= 100; i++) alienMotion(i / 100)];
-    expect(poses.map((p) => p.scale).reduce((a, b) => a > b ? a : b),
-        greaterThan(1.4),
-        reason: 'se acerca a la pantalla');
-    expect(poses.map((p) => p.angle).reduce((a, b) => a > b ? a : b),
-        greaterThan(5),
-        reason: 'da una vuelta completa');
-    expect(poses.map((p) => p.offset.dy).reduce((a, b) => a < b ? a : b),
-        lessThan(-30),
-        reason: 'salta');
-    // El ciclo empieza y termina igual (sin saltos al repetirse).
-    expect(alienMotion(0).scale, alienMotion(1).scale);
+  group('Gracias del marciano', () {
+    const stage = AlienStage(
+      anchor: Offset(300, 600),
+      screen: Size(412, 915),
+      panelTop: 160,
+      panelCenterX: 206,
+    );
+
+    test('cada número empieza y termina en su lugar', () {
+      for (final act in AlienAct.values) {
+        for (final t in [0.0, 1.0]) {
+          final p = alienAct(act, t, stage);
+          expect(p.offset.distance, lessThan(1), reason: '$act en t=$t');
+          expect(p.scale, closeTo(1, 0.01), reason: '$act en t=$t');
+          expect(p.squashX, closeTo(1, 0.01));
+          expect(p.squashY, closeTo(1, 0.01));
+        }
+      }
+    });
+
+    test('se acerca mucho a la pantalla', () {
+      final p = alienAct(AlienAct.closer, 0.5, stage);
+      expect(p.scale, greaterThan(3));
+      // Llega cerca del centro de la pantalla.
+      final center = stage.anchor + p.offset;
+      expect((center.dx - 206).abs(), lessThan(5));
+    });
+
+    test('se sube al panel de estadísticas', () {
+      final p = alienAct(AlienAct.panel, 0.28, stage);
+      final center = stage.anchor + p.offset;
+      // Parado sobre el panel, aplastado al aterrizar.
+      expect((center.dy - stage.panelTop).abs(), lessThan(stage.size / 2));
+      expect((center.dx - stage.panelCenterX).abs(), lessThan(5));
+      expect(p.squashY, lessThan(1));
+    });
+
+    test('choca contra los dos bordes', () {
+      final left = stage.anchor + alienAct(AlienAct.edges, 0.26, stage).offset;
+      final right = stage.anchor + alienAct(AlienAct.edges, 0.59, stage).offset;
+      expect(left.dx, lessThan(stage.size));
+      expect(right.dx, greaterThan(stage.screen.width - stage.size));
+      expect(alienAct(AlienAct.edges, 0.26, stage).squashX, lessThan(1));
+    });
+
+    test('la voltereta da una vuelta completa', () {
+      expect(alienAct(AlienAct.spin, 0.9, stage).angle,
+          closeTo(math.pi * 2, 0.01));
+    });
+
+    test('no repite el número anterior', () {
+      final random = math.Random(7);
+      AlienAct? last;
+      for (var i = 0; i < 50; i++) {
+        final next = nextAlienAct(random, last);
+        expect(next, isNot(last));
+        last = next;
+      }
+    });
   });
 }
