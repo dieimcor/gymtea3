@@ -153,26 +153,33 @@ class _CometTurnState extends State<CometTurn>
     final fullH = fullW / kFullCometAspect;
     final fullCenter = Offset(w / 2, top + h * 0.5);
 
-    // 1) El sprite se aleja y se funde.
-    final away = _phase(t, 0, 0.32, Curves.easeInCubic);
-    final fromOpacity = 1 - _phase(t, 0.16, 0.32);
+    // El sprite de 4 cráteres NUNCA se achica (sus bordes son un recorte
+    // recto): se acerca apenas y se funde. Lo que se aleja, gira y vuelve
+    // es el cometa completo, que es redondo y se ve limpio a cualquier
+    // tamaño.
+    final fromOpacity = 1 - _phase(t, 0.06, 0.2);
+    final fromScale = 1 + 0.08 * _phase(t, 0, 0.2);
 
-    // El cometa completo aparece (viene "de cerca"), gira y se vuelve a
-    // acercar al final.
-    final fullIn = _phase(t, 0.14, 0.32, Curves.easeOutCubic);
-    final fullOut = _phase(t, 0.8, 0.95);
-    final spin = _phase(t, 0.28, 0.74, Curves.easeInOutCubic);
-    final closer = _phase(t, 0.7, 0.95, Curves.easeInCubic);
-    final fullScale = (1.45 - 0.45 * fullIn) + 0.8 * closer;
-    final lift = -math.sin(math.pi * spin) * 14;
+    // z: 1 = cerca (el completo cubre lo mismo que el sprite), 0 = lejos.
+    final goAway = _phase(t, 0.04, 0.34, Curves.easeInOutCubic);
+    final comeBack = _phase(t, 0.66, 0.96, Curves.easeInOutCubic);
+    final z = 1 - goAway + comeBack;
+    final fullIn = _phase(t, 0.04, 0.16);
+    final fullOut = _phase(t, 0.86, 0.98);
+    final spin = _phase(t, 0.3, 0.7, Curves.easeInOutCubic);
+    // Cerca: grande y bajo (se ve la parte de arriba, como el sprite);
+    // lejos: entero y centrado.
+    const nearScale = 2.3;
+    final fullScale = 1 + (nearScale - 1) * z;
+    final lift = -math.sin(math.pi * spin) * 14 + h * 0.42 * z;
 
-    // 3) La cara nueva llega acercándose.
-    final arrive = _phase(t, 0.74, 1, Curves.easeOutBack);
-    final toOpacity = _phase(t, 0.76, 0.92);
+    // La cara nueva aparece mientras el completo está "cerca".
+    final toOpacity = _phase(t, 0.84, 0.97);
+    final toScale = 1.08 - 0.08 * _phase(t, 0.84, 1, Curves.easeOutCubic);
 
     final messageIn = _phase(t, 0.24, 0.42, Curves.easeOutBack);
-    final messageOpacity = (_phase(t, 0.24, 0.34) * (1 - _phase(t, 0.72, 0.84)))
-        .clamp(0.0, 1.0);
+    final messageOpacity =
+        (_phase(t, 0.24, 0.34) * (1 - _phase(t, 0.72, 0.84))).clamp(0.0, 1.0);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -186,7 +193,7 @@ class _CometTurnState extends State<CometTurn>
             child: Opacity(
               opacity: fromOpacity,
               child: Transform.scale(
-                scale: 1 - 0.45 * away,
+                scale: fromScale,
                 child: _sprite(widget.fromSprite),
               ),
             ),
@@ -217,7 +224,7 @@ class _CometTurnState extends State<CometTurn>
             child: Opacity(
               opacity: toOpacity,
               child: Transform.scale(
-                scale: 0.6 + 0.4 * arrive,
+                scale: toScale,
                 child: _sprite(widget.toSprite),
               ),
             ),

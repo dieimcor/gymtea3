@@ -46,6 +46,21 @@ quedó a medio ajustar (ver punto 1).
   algunas brillantes con halo amplio y destello en cruz, y el planeta un
   halo de atmósfera (todo con colores fijos).
 
+**Corregido al final de la sesión:**
+- El cometa de 4 llega hasta el borde inferior (`SafeArea(bottom: false)` +
+  2 px de desborde): ya no se ve su corte recto abajo.
+- Giro de cara (`comet_turn.dart`) y entrada del tablero: el sprite de 4
+  **nunca se achica** (solo se acerca un poco o se funde); el que se aleja,
+  gira y vuelve es el cometa completo. La entrada tras el viaje/giro llega
+  "desde cerca" (escala 1.12 → 1). **Falta mirarlo en el emulador.**
+
+**PRÓXIMA SESIÓN — super revisión de UX** (pedida por el usuario):
+recorrer toda la app como padre (login → ruta → despegue → mapa → pop-up →
+sesión → "¿Cómo le fue?" → recompensa → giro/viaje → perfil) y anotar
+fricciones, textos, tamaños, tiempos y animaciones. Ya visto: en la sesión,
+el chip "Descanso · 25s" / "Serie 2 de 2" superpone ambos textos durante
+el AnimatedSwitcher.
+
 **Pendientes:**
 1. ~~Sprites de pisadas~~ — descartado: el usuario verificó que el avance
    de pisadas ya funciona con los sprites `crater_1..5` (2026-11-26).

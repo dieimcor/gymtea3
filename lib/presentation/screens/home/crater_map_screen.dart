@@ -147,8 +147,7 @@ class _MapView {
 
   /// `true` si es la última cara de su cometa.
   bool get isLastFace =>
-      roundIndex % AppConstants.facesPerComet ==
-      AppConstants.facesPerComet - 1;
+      roundIndex % AppConstants.facesPerComet == AppConstants.facesPerComet - 1;
 
   bool sameAs(_MapView other) =>
       setEquals(completed, other.completed) &&
@@ -177,7 +176,6 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   /// Ciclo de animaciones del marciano (flota, se acerca, da una vuelta,
   /// salta). Ver [alienMotion].
   late final AnimationController _alienController;
-
 
   /// Entrada del tablero la primera vez: el cometa aparece con un zoom y
   /// el panel baja desde arriba.
@@ -357,6 +355,9 @@ class _CraterMapScreenState extends State<CraterMapScreen>
           AbsorbPointer(
             absorbing: busy,
             child: SafeArea(
+              // Abajo sin margen: el cometa llega hasta el borde y su corte
+              // recto queda fuera de la pantalla.
+              bottom: false,
               child: Column(
                 children: [
                   _buildTopBar(context),
@@ -552,14 +553,19 @@ class _CraterMapScreenState extends State<CraterMapScreen>
               return Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: bottomAir),
-                  child: _buildComet(
-                    view: view,
-                    levels: levels,
-                    viewportWidth: constraints.maxWidth,
-                    width: cometWidth,
-                    height: cometHeight,
-                    headroom: headroom,
+                  padding: EdgeInsets.zero,
+                  // Sobresale un poco por abajo: el borde inferior del sprite
+                  // (un recorte recto) nunca se ve.
+                  child: Transform.translate(
+                    offset: const Offset(0, 2),
+                    child: _buildComet(
+                      view: view,
+                      levels: levels,
+                      viewportWidth: constraints.maxWidth,
+                      width: cometWidth,
+                      height: cometHeight,
+                      headroom: headroom,
+                    ),
                   ),
                 ),
               );
@@ -785,7 +791,9 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     return FadeTransition(
       opacity: fade,
       child: ScaleTransition(
-        scale: Tween<double>(begin: 0.7, end: 1).animate(cometIn),
+        // Llega "desde cerca" (más grande) y nunca más chico que la
+        // pantalla: así no se ven los bordes rectos del sprite.
+        scale: Tween<double>(begin: 1.12, end: 1).animate(cometIn),
         child: child,
       ),
     );
