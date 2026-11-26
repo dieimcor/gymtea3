@@ -402,6 +402,9 @@ void main() {
       // Sigue en la sesión, con aviso y sin overlay de guardado.
       expect(find.byType(ExerciseSessionScreen), findsOneWidget);
       expect(find.textContaining('No pudimos guardar'), findsOneWidget);
+      // Nunca celebró: el guardado falló.
+      expect(find.text('¡Cráter conquistado!'), findsNothing);
+      expect(find.text('Guardando…'), findsNothing);
       expect(exercises.isCompleted(1), isFalse);
 
       // Reintenta con "siguiente": ahora guarda y vuelve al mapa.

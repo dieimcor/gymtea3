@@ -70,6 +70,13 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
   bool _busy = false;
   bool _finishing = false;
 
+  /// El cierre ya se guardó: el overlay pasa de "Guardando…" a celebrar.
+  bool _celebrating = false;
+
+  /// Cuánto se ve "¡Cráter conquistado!" antes de seguir.
+  static const celebrateFor = Duration(milliseconds: 900);
+  static const celebrateForReduced = Duration(milliseconds: 400);
+
   /// El último guardado falló: "siguiente" reintenta el cierre.
   bool _saveFailed = false;
 
@@ -377,6 +384,12 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
       );
       return;
     }
+    if (!mounted) return;
+
+    // Recién con todo guardado se celebra, un momento, y se sigue.
+    setState(() => _celebrating = true);
+    await Future<void>.delayed(
+        _reduceMotion ? celebrateForReduced : celebrateFor);
     if (!mounted) return;
 
     if (completion.cometCompleted) {
@@ -734,26 +747,66 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
     );
   }
 
+  /// Cierre del cráter: primero "Guardando…" y, solo cuando se guardó,
+  /// "¡Cráter conquistado!". Si falla, el overlay se va sin haber
+  /// celebrado (y aparece el aviso para reintentar).
   Widget _buildSavingOverlay() {
+    final celebrating = _celebrating;
     return Positioned.fill(
       child: ColoredBox(
-        color: AppTheme.backgroundDark.withValues(alpha: 0.85),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.rocket_launch_rounded,
-                  size: 56, color: AppTheme.goldAccent),
-              SizedBox(height: 12),
-              Text(
-                '¡Cráter conquistado!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.goldAccent,
-                ),
+        color: AppTheme.backgroundDark,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: Duration(milliseconds: _reduceMotion ? 0 : 300),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.85, end: 1).animate(
+                    CurvedAnimation(parent: anim, curve: Curves.easeOutBack)),
+                child: child,
               ),
-            ],
+            ),
+            child: celebrating
+                ? const Column(
+                    key: ValueKey('celebrate'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.rocket_launch_rounded,
+                          size: 56, color: AppTheme.goldAccent),
+                      SizedBox(height: 12),
+                      Text(
+                        '¡Cráter conquistado!',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.goldAccent,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    key: const ValueKey('saving'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          color: AppTheme.goldAccent,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Guardando…',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),

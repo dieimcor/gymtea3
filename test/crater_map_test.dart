@@ -576,6 +576,7 @@ void main() {
     testWidgets('el bloqueado tiembla al tocarlo y no abre nada',
         (tester) async {
       var taps = 0;
+      var lockedTaps = 0;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: Center(
@@ -585,6 +586,7 @@ void main() {
               dificultad: Dificultad.forLevel(3),
               craterSize: const Size(80, 70),
               onTap: () => taps++,
+              onLockedTap: () => lockedTaps++,
             ),
           ),
         ),
@@ -593,6 +595,7 @@ void main() {
       await tester.tap(find.byType(CraterMarker));
       await tester.pump(const Duration(milliseconds: 500));
       expect(taps, 0);
+      expect(lockedTaps, 1);
       expect(tester.takeException(), isNull);
     });
   });
@@ -663,6 +666,53 @@ void main() {
       expect(order.indexWhere((w) => w.key == const ValueKey('map-alien')),
           greaterThan(order.indexWhere((w) => w is ProgressPanel)));
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tocar un cráter bloqueado dice cuál va primero',
+        (tester) async {
+      await tester.runAsync(() => completeUpTo(1));
+      await mountMap(tester);
+
+      await tester.tap(
+          find.byWidgetPredicate((w) => w is CraterMarker && w.level == 4));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(lockedCraterMessage(2)), findsOneWidget);
+      // Deja que el aviso se vaya.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(seconds: 1));
+    });
+
+    testWidgets('si no se puede preparar el cráter, avisa y no se pega',
+        (tester) async {
+      // Pantalla de teléfono: con la de 800x600 el cráter 1 queda fuera.
+      await tester.binding.setSurfaceSize(const Size(412, 915));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final failing = _FailingBuildProvider();
+      await tester.runAsync(failing.loadMapState);
+      await tester.pumpWidget(mapApp(failing));
+      await tester.pump();
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      final first =
+          find.byWidgetPredicate((w) => w is CraterMarker && w.level == 1);
+      await tester.tap(first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(failing.attempts, 1, reason: 'el toque llegó a sortear');
+      expect(find.text(craterPrepareError), findsOneWidget);
+      expect(find.byType(CraterPreviewDialog), findsNothing);
+      expect(find.byKey(CraterMapScreen.preparingKey), findsNothing);
+
+      // Se puede volver a intentar: el toque no quedó bloqueado.
+      await tester.tap(first);
+      await tester.pump();
+      expect(failing.attempts, 2);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 1));
     });
 
     testWidgets('en la primera carga no hay viaje aunque sea otro cometa',
@@ -785,4 +835,24 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+}
+
+/// Proveedor cuyo sorteo de rutina siempre falla.
+class _FailingBuildProvider extends ExerciseProvider {
+  int attempts = 0;
+
+  _FailingBuildProvider()
+      : super(
+          exerciseRepository: ExerciseRepository(),
+          levelProgressService: LevelProgressService(),
+        );
+
+  @override
+  Future<RoutineModel> buildRoutine({
+    required String childId,
+    required int level,
+  }) async {
+    attempts++;
+    throw Exception('sin ejercicios');
+  }
 }

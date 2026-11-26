@@ -113,10 +113,15 @@ curso (`spokenDuration`); "En pausa" visible en serie y descanso;
 de guardado nombra "Reintentar"; panel sin "+0 min" (dice "+40 s");
 SnackBar al reiniciar el mapa.
 
-**Siguiente — tanda 2 (avisos que faltan):** mensaje al tocar un cráter
-bloqueado (#11), indicador de carga + `catch` al abrir un cráter y
-"Sortear" que no quede pegado (#14), "Guardando…" antes de celebrar
-(#22). **Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
+**Tanda 2 hecha (avisos):** cráter bloqueado → SnackBar "Primero
+conquisten el cráter N" (`CraterMarker.onLockedTap`,
+`lockedCraterMessage`); al abrir un cráter, indicador si tarda más de
+250 ms y aviso si falla (`craterPrepareError`); "Sortear" nunca queda
+pegado (`craterReshuffleError`); el cierre muestra "Guardando…" y solo al
+guardar "¡Cráter conquistado!" 900 ms (400 con movimiento reducido),
+fondo opaco.
+
+**Siguiente — Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
 quedan (#7, #8, #16, #17). **Consultar al usuario:** "modo calma" propio
 (#21) y suavizar el giro/escala del marciano (#13). Resto: #12, #26, #27,
 #29, #30 (títulos), #31, #32.

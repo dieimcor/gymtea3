@@ -99,6 +99,9 @@ String mapHintFor(
 /// Con "reducir movimiento" activo el cometa y el marciano quedan quietos,
 /// los cráteres no laten y el viaje es un fundido corto.
 class CraterMapScreen extends StatefulWidget {
+  /// Indicador mientras se prepara el cráter tocado.
+  static const preparingKey = Key('crater_preparing');
+
   const CraterMapScreen({super.key});
 
   @override
@@ -169,6 +172,12 @@ class _Travel {
 class _CraterMapScreenState extends State<CraterMapScreen>
     with TickerProviderStateMixin {
   bool _openingCrater = false;
+
+  /// Se está sorteando la rutina del cráter tocado. El indicador solo
+  /// aparece si tarda (ver [_spinnerDelay]) para no parpadear.
+  bool _showCraterSpinner = false;
+  Timer? _spinnerTimer;
+  static const _spinnerDelay = Duration(milliseconds: 250);
 
   /// Vaiven del marciano y del cometa para que no se vean estaticos.
   late final AnimationController _floatController;
@@ -262,6 +271,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _spinnerTimer?.cancel();
     _floatController.dispose();
     _alienController.dispose();
     _entranceController.dispose();
@@ -395,6 +405,20 @@ class _CraterMapScreenState extends State<CraterMapScreen>
           // El marciano va por encima de todo el tablero (panel, aviso y
           // marcadores) y solo queda debajo del viaje.
           if (view != null && travel == null && !_turning) _buildAlienOverlay(),
+          if (_showCraterSpinner)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: Color(0x66000000),
+                  child: Center(
+                    key: CraterMapScreen.preparingKey,
+                    child: CircularProgressIndicator(
+                      color: AppTheme.goldAccent,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (travel != null)
             Positioned.fill(
               child: CometTravel(
@@ -915,8 +939,40 @@ class _CraterMapScreenState extends State<CraterMapScreen>
             context.read<ExerciseProvider>().route.extraExercises,
         craterSize: Size(w, h),
         onTap: () => _openCrater(level),
+        onLockedTap: () => _explainLocked(view),
       ),
     );
+  }
+
+  /// Aviso breve al tocar un cráter bloqueado: cuál va primero.
+  void _explainLocked(_MapView view) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text(lockedCraterMessage(view.highestUnlocked)),
+        ),
+      );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _setPreparing(bool preparing) {
+    _spinnerTimer?.cancel();
+    _spinnerTimer = null;
+    if (preparing) {
+      _spinnerTimer = Timer(_spinnerDelay, () {
+        if (mounted) setState(() => _showCraterSpinner = true);
+      });
+    } else if (_showCraterSpinner && mounted) {
+      setState(() => _showCraterSpinner = false);
+    }
   }
 
   // ------------------------------------------------------------
@@ -932,7 +988,15 @@ class _CraterMapScreenState extends State<CraterMapScreen>
         context.read<AuthProvider>().currentChild?.id ?? 'mock-child';
 
     try {
-      await provider.buildRoutine(childId: childId, level: level);
+      _setPreparing(true);
+      try {
+        await provider.buildRoutine(childId: childId, level: level);
+      } catch (_) {
+        if (mounted) _showError(craterPrepareError);
+        return;
+      } finally {
+        _setPreparing(false);
+      }
       if (!mounted) return;
 
       var reshuffling = false;
@@ -954,8 +1018,17 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                     isReshuffling: reshuffling,
                     onReshuffle: () async {
                       setDialogState(() => reshuffling = true);
-                      await p.buildRoutine(childId: childId, level: level);
-                      setDialogState(() => reshuffling = false);
+                      try {
+                        await p.buildRoutine(childId: childId, level: level);
+                      } catch (_) {
+                        // Se queda la rutina que ya estaba a la vista.
+                        if (mounted) _showError(craterReshuffleError);
+                      } finally {
+                        // Nunca queda pegado el botón "Sortear".
+                        if (dialogContext.mounted) {
+                          setDialogState(() => reshuffling = false);
+                        }
+                      }
                     },
                   );
                 },
@@ -1028,3 +1101,13 @@ AlienPose alienMotion(double t) {
     scale: 1 + 0.9 * closer,
   );
 }
+
+/// Aviso al tocar un cráter bloqueado.
+String lockedCraterMessage(int next) =>
+    'Este cráter aún está cerrado. Primero conquisten el cráter $next.';
+
+/// Errores al abrir o volver a sortear un cráter.
+const craterPrepareError =
+    'No pudimos preparar el cráter. Intenten de nuevo en un momento.';
+const craterReshuffleError =
+    'No pudimos sortear otros ejercicios. Siguen los de antes.';

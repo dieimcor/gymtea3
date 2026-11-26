@@ -61,6 +61,10 @@ class CraterMarker extends StatefulWidget {
 
   final VoidCallback? onTap;
 
+  /// Toque sobre un cráter bloqueado (además del temblor): el mapa avisa
+  /// cuál hay que conquistar primero.
+  final VoidCallback? onLockedTap;
+
   const CraterMarker({
     super.key,
     required this.level,
@@ -69,6 +73,7 @@ class CraterMarker extends StatefulWidget {
     required this.craterSize,
     this.exerciseCount,
     this.onTap,
+    this.onLockedTap,
   });
 
   @override
@@ -154,6 +159,7 @@ class _CraterMarkerState extends State<CraterMarker>
   void _handleTap() {
     if (_isLocked) {
       _shake.forward(from: 0);
+      widget.onLockedTap?.call();
       return;
     }
     widget.onTap?.call();
