@@ -1,6 +1,6 @@
 # Handoff — Mapa de Cráteres
 
-> **Fecha:** 2026-11-09 · **Rama:** `main` · **Último commit:** `4048a52`
+> **Fecha:** 2026-11-09 · **Rama:** `main` · **Último commit:** `acffd18`
 > **Estado:** rediseño terminado, verificado en emulador. Nada a medias.
 
 Este documento es para retomar el trabajo. La especificación completa

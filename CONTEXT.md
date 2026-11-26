@@ -156,7 +156,9 @@ assets/images/
 La pantalla principal es el mapa: **un cráter por nivel**.
 
 - Se parte con el **cráter 1** abierto; completar un cráter abre el siguiente.
-- Se muestran **4 cráteres**; los niveles 5-7 se revelan al superar esos cuatro.
+- **8 niveles** en total (`AppConstants.totalCraterCount`), en tandas de **4 cráteres**
+  sobre un solo cometa: al conquistar los 4, los mismos cráteres se renumeran
+  con los niveles 5-8.
 - El avance se guarda local (`SharedPreferences`), sin backend ni evaluación.
 
 ### Dificultad por nivel
@@ -165,7 +167,7 @@ La pantalla principal es el mapa: **un cráter por nivel**.
 |---------|-----------|-----------|--------|---------|----------|
 | 1-2 | Fácil | 3 | 2 | 60 s | 20 s |
 | 3-5 | Medio | 4 | 2 | 60 s | 25 s |
-| 6-7 | Difícil | 5 | 2 | 60 s | 30 s |
+| 6-8 | Difícil | 5 | 2 | 60 s | 30 s |
 
 El descanso es **incremental según la dificultad** y aplica tanto entre series
 como entre ejercicios. Los valores son fijos: el padre ya no los elige.
