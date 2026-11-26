@@ -107,7 +107,7 @@ class ProgressPanel extends StatelessWidget {
           Text(
             ' / $total',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: Colors.white.withValues(alpha: 0.75),
             ),
@@ -152,7 +152,7 @@ class ProgressPanel extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),

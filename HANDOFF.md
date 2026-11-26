@@ -131,8 +131,12 @@ superponerse), insignia de 88 px bajo el recurso, pasos con puntos,
 descanso con "Descansen", marciano dentro del anillo de 250 px, el
 número abajo y qué viene después. Cifras con `AppTheme.numbers`
 (tabulares). "¿Cómo le fue?" con barrera casi opaca. Prepárate, portada
-y controles sin cambios. Quedan de la tanda 3: letras chicas #7, #8, #16
-(mapa/pop-up).
+y controles sin cambios. Letras chicas del mapa y pop-up también
+hechas: aviso del día 14 pt con ícono ↻, " / 16" al tamaño del número,
+chip del cometa 13, pop-up "Para este cráter necesitan" 14, categoría
+13 y duración en palabras ("El cráter dura unos 7 minutos",
+`estimatedLabel`). **Pendiente decidir con el usuario:** modo calma
+(#21) y suavizar el giro del marciano (#13).
 
 **Siguiente — Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
 quedan (#7, #8, #16, #17). **Consultar al usuario:** "modo calma" propio

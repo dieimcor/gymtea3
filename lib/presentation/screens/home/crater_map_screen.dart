@@ -657,12 +657,20 @@ class _CraterMapScreenState extends State<CraterMapScreen>
                   message,
                   key: ValueKey(message),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     height: 1.3,
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ),
+            ),
+            const SizedBox(width: 8),
+            // Pista de que tocarlo trae otro consejo.
+            Icon(
+              Icons.refresh_rounded,
+              size: 18,
+              color: Colors.white.withValues(alpha: 0.5),
+              semanticLabel: 'Otro consejo',
             ),
           ],
         ),

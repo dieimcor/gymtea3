@@ -6,7 +6,6 @@ import 'package:gymtea3/data/models/routine_model.dart';
 import 'package:gymtea3/presentation/widgets/bouncy_tap.dart';
 import 'package:gymtea3/presentation/widgets/equipment_chip.dart';
 import 'package:gymtea3/presentation/widgets/exercise_media_slot.dart';
-import 'package:gymtea3/utils/formatters.dart';
 
 /// Pop-up que se abre al tocar un cráter: muestra los ejercicios que
 /// tocaron en ese nivel antes de empezar, al estilo del tablero de
@@ -188,7 +187,7 @@ class CraterPreviewDialog extends StatelessWidget {
           Text(
             ruta.label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: ruta.color,
             ),
@@ -227,9 +226,9 @@ class CraterPreviewDialog extends StatelessWidget {
           Text(
             'Para este cráter necesitan',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Colors.white.withValues(alpha: 0.75),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 6),
@@ -341,8 +340,8 @@ class CraterPreviewDialog extends StatelessWidget {
               Text(
                 exercise.categoriaNombre ?? exercise.categoria,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -358,10 +357,10 @@ class CraterPreviewDialog extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Duración estimada: ${Formatters.formatDuration(routine.estimatedSeconds)}',
+            estimatedLabel(routine.estimatedSeconds),
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 12),
@@ -448,4 +447,12 @@ class _StaggeredEntry extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// "El cráter dura unos 7 minutos": la duración en palabras (antes "06:55", que
+/// se leía como una hora).
+String estimatedLabel(int seconds) {
+  final minutes = (seconds / 60).round();
+  if (minutes <= 1) return 'El cráter dura cerca de un minuto';
+  return 'El cráter dura unos $minutes minutos';
 }
