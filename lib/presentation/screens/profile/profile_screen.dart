@@ -4,11 +4,15 @@ import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/data/models/training_route.dart';
 import 'package:gymtea3/presentation/providers/auth_provider.dart';
 import 'package:gymtea3/presentation/providers/exercise_provider.dart';
+import 'package:gymtea3/presentation/providers/settings_provider.dart';
 import 'package:gymtea3/presentation/widgets/bouncy_tap.dart';
 
 /// Pantalla de Perfil — muestra datos del padre e hijo, cerrar sesión
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  /// Interruptor "Animaciones suaves".
+  static const calmSwitchKey = Key('profile_calm_switch');
 
   @override
   Widget build(BuildContext context) {
@@ -162,6 +166,13 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
+              const SizedBox(height: 24),
+
+              // Sección: Animaciones
+              _buildSectionTitle('Pantalla'),
+              const SizedBox(height: 12),
+              _entrance(delayMs: 420, child: _buildCalmCard(context)),
 
               const SizedBox(height: 24),
 
@@ -363,6 +374,55 @@ class ProfileScreen extends StatelessWidget {
                 Icon(Icons.chevron_right_rounded, color: route.color),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// "Animaciones suaves": calma toda la app (sin confeti, sin vaivenes,
+  /// viajes cortos). Apagado de entrada.
+  Widget _buildCalmCard(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: SwitchListTile(
+        key: calmSwitchKey,
+        value: settings.calmMode,
+        onChanged: settings.setCalmMode,
+        activeThumbColor: AppTheme.goldAccent,
+        contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        secondary: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(
+            Icons.spa_rounded,
+            size: 18,
+            color: AppTheme.primaryGreen,
+          ),
+        ),
+        title: const Text(
+          'Animaciones suaves',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        subtitle: Text(
+          'Menos movimiento y sin confeti, para niños sensibles a los '
+          'estímulos.',
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.3,
+            color: AppTheme.textLight.withValues(alpha: 0.65),
           ),
         ),
       ),

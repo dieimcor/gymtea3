@@ -6,6 +6,7 @@ import 'package:gymtea3/core/theme/app_theme.dart';
 import 'package:gymtea3/presentation/providers/auth_provider.dart';
 import 'package:gymtea3/presentation/providers/exercise_provider.dart';
 import 'package:gymtea3/presentation/providers/progress_provider.dart';
+import 'package:gymtea3/presentation/providers/settings_provider.dart';
 
 // Services & Repositories
 import 'package:gymtea3/data/services/auth_service.dart';
@@ -35,6 +36,7 @@ class NeuroGymApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authRepository: AuthRepository(
@@ -59,6 +61,12 @@ class NeuroGymApp extends StatelessWidget {
         title: 'NeuroGym',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
+
+        // "Animaciones suaves" (Perfil) calma toda la app.
+        builder: (context, child) => SettingsProvider.apply(
+          calm: context.watch<SettingsProvider>().calmMode,
+          child: child ?? const SizedBox.shrink(),
+        ),
 
         // Ruta inicial
         initialRoute: '/splash',
