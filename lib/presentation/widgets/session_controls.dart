@@ -49,19 +49,21 @@ class SessionControls extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // "¡Prepárate!" aparece con un saltito sobre los controles.
+        // "¡Prepárate!" (o "En pausa", en cualquier momento) aparece con un
+        // saltito sobre los controles.
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           transitionBuilder: (child, anim) => ScaleTransition(
             scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
             child: FadeTransition(opacity: anim, child: child),
           ),
-          child: preparing
+          child: preparing || !isRunning
               ? Padding(
-                  key: const ValueKey('prep-label'),
+                  key: ValueKey(
+                      preparing && isRunning ? 'prep-label' : 'pause-label'),
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
-                    isRunning ? '¡Prepárate!' : 'En pausa',
+                    preparing && isRunning ? '¡Prepárate!' : 'En pausa',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,

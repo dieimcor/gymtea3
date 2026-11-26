@@ -16,7 +16,6 @@ import 'package:gymtea3/presentation/widgets/exercise_media_slot.dart';
 import 'package:gymtea3/presentation/widgets/how_did_it_go_sheet.dart';
 import 'package:gymtea3/presentation/widgets/session_controls.dart';
 import 'package:gymtea3/presentation/widgets/session_timer_widget.dart';
-import 'package:gymtea3/utils/formatters.dart';
 
 /// Sesión activa de un cráter.
 ///
@@ -220,6 +219,19 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
     _timerKey.currentState?.start();
   }
 
+  /// Texto del diálogo de salida. Cuenta también la serie en curso (antes
+  /// decía "Llevan 00:00" en la primera) y lo escribe en palabras.
+  String _exitMessage() {
+    var seconds = _elapsedSeconds;
+    final step = _step;
+    if (!_introVisible && step != null && !step.isRest) {
+      seconds += _timerKey.currentState?.elapsedSeconds ?? 0;
+    }
+    const lose = 'Si salen ahora, esta rutina no se guardará.';
+    if (seconds <= 0) return lose;
+    return 'Llevan ${spokenDuration(seconds)} de entrenamiento. $lose';
+  }
+
   /// Suma lo entrenado en el paso que se deja y congela todo.
   void _leaveStep() {
     final timer = _timerKey.currentState;
@@ -357,7 +369,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'No pudimos guardar el cráter. Toca "siguiente" para '
+            'No pudimos guardar el cráter. Toca "Reintentar" para '
             'intentarlo de nuevo.',
           ),
           action: SnackBarAction(label: 'Reintentar', onPressed: _finish),
@@ -769,8 +781,7 @@ class _ExerciseSessionScreenState extends State<ExerciseSessionScreen>
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'Llevan ${Formatters.formatDuration(_elapsedSeconds)} de entrenamiento. '
-          'Si salen ahora, esta rutina no se guardará.',
+          _exitMessage(),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
         ),
         actions: [
@@ -1024,4 +1035,13 @@ class _ExplanationCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Duración en palabras para el padre: "45 s", "2 min", "2 min 10 s".
+String spokenDuration(int seconds) {
+  final m = seconds ~/ 60;
+  final s = seconds % 60;
+  if (m == 0) return '$s s';
+  if (s == 0) return '$m min';
+  return '$m min $s s';
 }

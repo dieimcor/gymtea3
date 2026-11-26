@@ -104,7 +104,22 @@ archivo es solo local.
 lenguas) y capa delante (borde caliente abajo + lenguas por los costados).
 Antes de encender solo hay una llamita; crece con `ignition`.
 
-Siguen los hallazgos Media/Baja de la revisión (7–32) para profundizar.
+**Tanda 1 de Media/Baja hecha** (arreglos rápidos): aviso demo del login
+solo en `kDebugMode` (nota del psicopedagogo a 14 pt); sin botón de
+Minijuegos en el mapa (Fase 5 en pausa) y perfil de 48 dp; "45s por
+serie" en el pop-up; salida "Llevan 2 min 10 s" contando la serie en
+curso (`spokenDuration`); "En pausa" visible en serie y descanso;
+"¿Cómo le fue?" sin handle y con `PopScope` (atrás no la cierra); error
+de guardado nombra "Reintentar"; panel sin "+0 min" (dice "+40 s");
+SnackBar al reiniciar el mapa.
+
+**Siguiente — tanda 2 (avisos que faltan):** mensaje al tocar un cráter
+bloqueado (#11), indicador de carga + `catch` al abrir un cráter y
+"Sortear" que no quede pegado (#14), "Guardando…" antes de celebrar
+(#22). **Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
+quedan (#7, #8, #16, #17). **Consultar al usuario:** "modo calma" propio
+(#21) y suavizar el giro/escala del marciano (#13). Resto: #12, #26, #27,
+#29, #30 (títulos), #31, #32.
 
 ~~**PRÓXIMA SESIÓN — super revisión de UX**~~ (pedida por el usuario):
 recorrer toda la app como padre (login → ruta → despegue → mapa → pop-up →

@@ -54,7 +54,6 @@ class ProgressPanel extends StatelessWidget {
     this.onRouteTap,
   });
 
-
   @override
   Widget build(BuildContext context) {
     // Sin cuadro grande: una línea con el cometa y los cráteres, y las tres
@@ -187,7 +186,7 @@ class ProgressPanel extends StatelessWidget {
             value: stats.seconds,
             label: 'juntos',
             format: formatTrainingTime,
-            formatDelta: (d) => '+${(d / 60).round()} min',
+            formatDelta: (d) => d < 60 ? '+$d s' : '+${(d / 60).round()} min',
             delay: const Duration(milliseconds: 300),
             borderColor: routeColor,
           ),

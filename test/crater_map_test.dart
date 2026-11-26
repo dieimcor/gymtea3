@@ -239,7 +239,8 @@ void main() {
       expect(find.text('2 series'), findsOneWidget);
       // La serie dura lo de la ruta (Explorador: 30 s), no 60 fijos.
       expect(routine.ruta, TrainingRoute.explorador);
-      expect(find.text('${routine.exerciseSeconds}s'), findsOneWidget);
+      expect(
+          find.text('${routine.exerciseSeconds}s por serie'), findsOneWidget);
       expect(find.text('20s descanso'), findsOneWidget);
       expect(find.text('Explorador'), findsOneWidget);
 
@@ -287,8 +288,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('el pop-up junta lo que necesitan sin repetir',
-        (tester) async {
+    testWidgets('el pop-up junta lo que necesitan sin repetir', (tester) async {
       ExerciseModel ex(String id, {String? implemento, String? reemplazo}) =>
           ExerciseModel(
             id: id,
@@ -327,10 +327,10 @@ void main() {
       expect(find.descendant(of: inGear, matching: find.text('Toalla')),
           findsOneWidget);
       expect(find.text(CraterPreviewDialog.noGearText), findsNothing);
-      expect(find.text('45s'), findsOneWidget);
+      expect(find.text('45s por serie'), findsOneWidget);
       expect(find.text('Astronauta'), findsOneWidget);
-      expect(EquipmentIcons.forText('Sofá o silla firme'),
-          Icons.weekend_rounded);
+      expect(
+          EquipmentIcons.forText('Sofá o silla firme'), Icons.weekend_rounded);
 
       Navigator.of(tester.element(inGear)).pop();
       await tester.pumpAndSettle();

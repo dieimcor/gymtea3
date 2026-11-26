@@ -41,10 +41,14 @@ class HowDidItGoSheet extends StatefulWidget {
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => HowDidItGoSheet(
-        childName: childName,
-        exerciseName: exerciseName,
-        initial: initial,
+      // El botón atrás de Android tampoco la cierra: se responde o se salta.
+      builder: (_) => PopScope(
+        canPop: false,
+        child: HowDidItGoSheet(
+          childName: childName,
+          exerciseName: exerciseName,
+          initial: initial,
+        ),
       ),
     );
   }
@@ -123,15 +127,7 @@ class _HowDidItGoSheetState extends State<HowDidItGoSheet>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 4),
             Text(
               '¿Cómo le fue a ${widget.childName}?',
               textAlign: TextAlign.center,

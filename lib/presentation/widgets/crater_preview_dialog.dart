@@ -156,7 +156,7 @@ class CraterPreviewDialog extends StatelessWidget {
               const SizedBox(width: 8),
               _buildChip(
                 Icons.timer_outlined,
-                '${routine.exerciseSeconds}s',
+                '${routine.exerciseSeconds}s por serie',
               ),
               const SizedBox(width: 8),
               _buildChip(

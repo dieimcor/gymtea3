@@ -30,6 +30,57 @@ ExerciseModel _ex(String id) => ExerciseModel(
     );
 
 void main() {
+  group('Textos para el padre', () {
+    test('la duración se dice en palabras, no como una hora', () {
+      expect(spokenDuration(45), '45 s');
+      expect(spokenDuration(120), '2 min');
+      expect(spokenDuration(130), '2 min 10 s');
+    });
+
+    Widget controls({required bool running, required bool preparing}) =>
+        MaterialApp(
+          home: Scaffold(
+            body: SessionControls(
+              isRunning: running,
+              preparing: preparing,
+              onTogglePause: () {},
+            ),
+          ),
+        );
+
+    testWidgets('"En pausa" se ve también durante la serie', (tester) async {
+      await tester.pumpWidget(controls(running: false, preparing: false));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('En pausa'), findsOneWidget);
+
+      await tester.pumpWidget(controls(running: true, preparing: false));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('En pausa'), findsNothing);
+      expect(find.text('¡Prepárate!'), findsNothing);
+
+      await tester.pumpWidget(controls(running: true, preparing: true));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('¡Prepárate!'), findsOneWidget);
+    });
+
+    testWidgets('el botón atrás no cierra "¿Cómo le fue?"', (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (c) {
+          ctx = c;
+          return const Scaffold();
+        }),
+      ));
+      HowDidItGoSheet.show(ctx, childName: 'Tomás', exerciseName: 'Saltos');
+      await tester.pumpAndSettle();
+      expect(find.byKey(HowDidItGoSheet.skipKey), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byKey(HowDidItGoSheet.skipKey), findsOneWidget);
+    });
+  });
+
   group('SessionPlan', () {
     final plan = SessionPlan.build(
       exercises: [_ex('a'), _ex('b')],

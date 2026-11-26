@@ -283,8 +283,15 @@ class ProfileScreen extends StatelessWidget {
           TextButton(
             onPressed: () async {
               final provider = dialogContext.read<ExerciseProvider>();
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(dialogContext);
               await provider.resetProgress();
+              messenger.showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Listo: el mapa de esta ruta volvió al inicio.'),
+                ),
+              );
             },
             child: Text(
               'Reiniciar',

@@ -419,7 +419,7 @@ class _CraterMapScreenState extends State<CraterMapScreen>
     );
   }
 
-  /// Barra superior mínima: solo los accesos (minijuegos y perfil). El
+  /// Barra superior mínima: solo el acceso al perfil. El
   /// título "Mapa de Cráteres" se omite para darle espacio al tablero; el
   /// encabezado con el nombre del niño vive en la elección de ruta.
   Widget _buildTopBar(BuildContext context) {
@@ -428,12 +428,8 @@ class _CraterMapScreenState extends State<CraterMapScreen>
       child: Row(
         children: [
           const Spacer(),
-          _buildIconButton(
-            icon: Icons.sports_esports_rounded,
-            tooltip: 'Minijuegos',
-            onTap: () => Navigator.pushNamed(context, '/minigames'),
-          ),
-          const SizedBox(width: 8),
+          // Minijuegos (Fase 5) está en pausa: su botón vuelve cuando haya
+          // juegos; hoy solo llevaba a "Próximamente".
           _buildIconButton(
             icon: Icons.person_rounded,
             tooltip: 'Perfil',
@@ -462,7 +458,8 @@ class _CraterMapScreenState extends State<CraterMapScreen>
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(10),
+              // 13 + 22 + 13 = 48 dp, el mínimo cómodo para tocar.
+              padding: const EdgeInsets.all(13),
               child: Icon(icon, color: Colors.white, size: 22),
             ),
           ),
