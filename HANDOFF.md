@@ -54,6 +54,21 @@ quedó a medio ajustar (ver punto 1).
   gira y vuelve es el cometa completo. La entrada tras el viaje/giro llega
   "desde cerca" (escala 1.12 → 1). **Falta mirarlo en el emulador.**
 
+**PRÓXIMA SESIÓN — primero esto (pedido 2026-11-26):**
+- **El marciano debe sobreponerse a todo.** Hoy vive dentro del
+  `ClipRect`/`OverflowBox` del cometa (`_buildAlien` en
+  `crater_map_screen.dart`), así que queda **debajo** del panel de
+  estadísticas y del aviso, y se recorta al salir del área del cometa.
+  Debe dibujarse en una capa superior del `Stack` de la pantalla (por
+  encima del panel, el aviso y los marcadores; debajo solo del viaje/giro),
+  manteniendo su posición junto al cráter actual (convertir coordenadas
+  del cometa a la pantalla, p. ej. con un `GlobalKey` del área del cometa
+  o `CompositedTransformFollower`). Así, cuando flota hacia arriba o "se
+  acerca a la pantalla" (escala 1.55 en `alienMotion`), pasa **por encima**
+  del tablero y da la idea de que flota de verdad. Verificar que el
+  acercamiento se note (subir escala/desplazamiento si hace falta) y que
+  no bloquee toques (`IgnorePointer`).
+
 **PRÓXIMA SESIÓN — super revisión de UX** (pedida por el usuario):
 recorrer toda la app como padre (login → ruta → despegue → mapa → pop-up →
 sesión → "¿Cómo le fue?" → recompensa → giro/viaje → perfil) y anotar
