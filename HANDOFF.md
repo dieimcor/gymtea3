@@ -143,6 +143,16 @@ repetir — se acerca mucho a la pantalla, se sube al panel y camina,
 choca contra los dos bordes y vuelve mareado, voltereta, saludo. Con
 movimiento reducido se queda quieto.
 
+**Revisión de errores + QA (2026-11-26):** `/code-review high` sobre
+`3ef391b..HEAD` dio 8 hallazgos, todos corregidos en `623d336` (modo calma
+también en pop-up, Perfil, BouncyTap y transiciones, leído antes de
+`runApp`; tiempo de salida sin doble conteo; sin "En pausa" al fallar el
+guardado; `_finish` con `mounted`; el marciano corta su número al
+viajar/girar; error de "Sortear" dentro del pop-up; "Vuelta 6"). QA en
+emulador: login → ruta → despegue → mapa → sesión → descanso → perfil y
+modo calma (mapa quieto). Release `--split-per-abi` probado en el
+emulador; APKs en el Escritorio, carpeta `NeuroGym-APK`. 142 tests.
+
 **Siguiente — Tanda 3:** datos del ejercicio (ver arriba) + letras chicas que
 quedan (#7, #8, #16, #17). **Consultar al usuario:** "modo calma" propio
 (#21) y suavizar el giro/escala del marciano (#13). Resto: #12, #26, #27,
